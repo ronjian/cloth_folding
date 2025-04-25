@@ -21,15 +21,20 @@ if not rosgraph.is_master_online():
     exit()
 
 import math, os
+
 # Note that this is not the system level rospy, but one compiled for omniverse
 import rospy
 from sensor_msgs.msg import JointState
 from control_msgs.msg import GripperCommandActionGoal
 
+
 class Arm:
     def __init__(self, arm_name):
         self.joint_states_sub = rospy.Subscriber(
-            "/{}/joint_states".format(arm_name), JointState, self.joint_states_callback, queue_size=10
+            "/{}/joint_states".format(arm_name),
+            JointState,
+            self.joint_states_callback,
+            queue_size=10,
         )
         self.gripper_goal_sub = rospy.Subscriber(
             "/{}/franka_gripper/gripper_action/goal".format(arm_name),
@@ -38,8 +43,16 @@ class Arm:
             queue_size=10,
         )
         self.dc = _dynamic_control.acquire_dynamic_control_interface()
-        self.joints_pos = [p * math.pi / 180.0 for p in [0,-45,0,-135,0,90,45]]
-        self.joints_name = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"]
+        self.joints_pos = [p * math.pi / 180.0 for p in [0, -45, 0, -135, 0, 90, 45]]
+        self.joints_name = [
+            "panda_joint1",
+            "panda_joint2",
+            "panda_joint3",
+            "panda_joint4",
+            "panda_joint5",
+            "panda_joint6",
+            "panda_joint7",
+        ]
         self.gripper_pos = 0.04
         self.arm_name = arm_name
 
@@ -52,7 +65,7 @@ class Arm:
     def close(self):
         self.joint_states_sub.unregister()
         self.gripper_goal_sub.unregister()
-    
+
     def update(self):
         articulation = self.dc.get_articulation("/World/{}".format(self.arm_name))
         # update joints
@@ -69,6 +82,7 @@ class Arm:
             self.gripper_pos,
         )
 
+
 class RosSubscriber:
     def __init__(self):
         self.timeline = omni.timeline.get_timeline_interface()
@@ -79,6 +93,7 @@ class RosSubscriber:
         simulation_app.update()
         print("Loading stage...")
         from isaacsim.core.utils.stage import is_stage_loading
+
         while is_stage_loading():
             simulation_app.update()
         print("Loading Complete")
