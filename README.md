@@ -21,7 +21,7 @@ ROS_NAMESPACE=panda_right roslaunch panda_moveit_config demo.launch rviz_tutoria
 启动isaac sim仿真程序
 ```
 cd isaacsim
-./python.sh cloth_folding/isaac_sim/subscribe_franka.py
+./python.sh cloth_folding/isaac_sim/franka_cloth_folding.py
 ```
 或者在vscode中debug启动代码，前提是用的是isaacsim自带的python程序
 (```isaacsim/kit/python/bin/python3```)和 ```PYTHONPATH```等环境变量配置正确
@@ -30,4 +30,10 @@ cd isaacsim
 需要确保使用系统自带的python执行程序。
 ```shell
 python ros/franka_pickup.py 
+```
+
+启动点云采集程序可以采集isaac sim场景中的点云并存储到```tmp.pcd```文件。
+```shell
+python ros/rgbd_to_pointcloud.py
+pcl_viewer -ax 1.0 tmp.pcd
 ```
