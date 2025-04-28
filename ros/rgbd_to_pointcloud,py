@@ -117,7 +117,7 @@ class RGBDToPointCloud:
                         # 更新可视化
                         self.pcd.points = pcd.points
                         self.pcd.colors = pcd.colors
-                        o3d.io.write_point_cloud("tmp.pcd", self.pcd, write_ascii=True)  # PCD格式
+                        o3d.io.write_point_cloud("tmp.pcd", self.pcd)  # PCD格式
                 except Exception as e:
                     rospy.logerr("Error in point cloud creation: %s", str(e))
             
