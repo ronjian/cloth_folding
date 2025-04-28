@@ -20,13 +20,22 @@ class Manipulator:
         )
         self.arm_name = arm_name
 
-    def move_to_start(self):
+    def move_to_joints(self, joints):
+        assert len(joints) == 7, "关节数不正确！"
         self.arm_group.set_joint_value_target(
-            [p * math.pi / 180.0 for p in [0, -45, 0, -135, 0, 90, 45]]
+            [p * math.pi / 180.0 for p in joints]
         )
         # 执行运动
         self.arm_group.go(wait=True)
+        return
+
+    def move_to_start(self):
+        self.move_to_joints([0, -45, 0, -135, 0, 90, 45])
         rospy.loginfo("%s | 运动到起始位置完成！" % self.arm_name)
+
+    def move_to_home(self):
+        self.move_to_joints([0, -45, 0, -45, 0, 90, 45])
+        rospy.loginfo("%s | 运动到HOME位置完成！" % self.arm_name)
 
     def move_gripper(self, position):
         self.gripper_group.set_joint_value_target(
@@ -69,6 +78,7 @@ class Manipulator:
         rospy.loginfo("%s | 直线运动完成！" % self.arm_name)
 
     def pickup(self):
+        self.move_to_home()
         self.move_to_start()
         # 获取当前末端姿态
         start_pose = self.arm_group.get_current_pose().pose
@@ -82,7 +92,9 @@ class Manipulator:
         self.move_straight(target_pose)
         self.close_gripper()
         self.move_straight(start_pose)
+        # self.move_to_start()
         self.open_gripper()
+        self.move_to_home()
 
 
 if __name__ == "__main__":

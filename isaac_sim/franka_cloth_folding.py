@@ -29,9 +29,39 @@ import math, os
 
 # Note that this is not the system level rospy, but one compiled for omniverse
 import rospy
+from tf2_msgs.msg import TFMessage
+from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import JointState
 from control_msgs.msg import GripperCommandActionGoal
 
+
+def query_pose(prim_path, frame_id):
+    xform_prim = XFormPrim(prim_path)
+    position = xform_prim.get_world_poses()[0][0]
+    quat = xform_prim.get_world_poses()[1][0]
+
+    tf_msg = TFMessage()
+    
+    # 填充 TransformStamped
+    transform = TransformStamped()
+    transform.header.stamp = rospy.Time.now()
+    transform.header.frame_id = "world"  # 父坐标系
+    transform.child_frame_id = frame_id  # 子坐标系
+    
+    # 设置变换
+    transform.transform.translation.x = position[0]  # X 坐标
+    transform.transform.translation.y = position[1]  # Y 坐标
+    transform.transform.translation.z = position[2]  # Z 坐标
+    
+    # 设置旋转（四元数）
+    transform.transform.rotation.x = quat[1]
+    transform.transform.rotation.y = quat[2]
+    transform.transform.rotation.z = quat[3]
+    transform.transform.rotation.w = quat[0]
+    
+    # 将 TransformStamped 添加到 TFMessage
+    tf_msg.transforms.append(transform)
+    return tf_msg
 
 class Arm:
     def __init__(self, arm_name):
@@ -48,7 +78,7 @@ class Arm:
             queue_size=10,
         )
         self.dc = _dynamic_control.acquire_dynamic_control_interface()
-        self.joints_pos = [p * math.pi / 180.0 for p in [0, -45, 0, -135, 0, 90, 45]]
+        self.joints_pos = [p * math.pi / 180.0 for p in [0, -45, 0, -45, 0, 90, 45]]
         self.joints_name = [
             "panda_joint1",
             "panda_joint2",
@@ -60,6 +90,7 @@ class Arm:
         ]
         self.gripper_pos = 0.04
         self.arm_name = arm_name
+        self.world_pose_pub = rospy.Publisher('/{}/pose_in_world'.format(arm_name), TFMessage, queue_size=10)
 
     def joint_states_callback(self, msg: JointState):
         self.joints_pos = msg.position
@@ -86,6 +117,11 @@ class Arm:
             self.dc.find_articulation_dof(articulation, "panda_finger_joint2"),
             self.gripper_pos,
         )
+
+    def pub_pose(self):
+        tf_msg = query_pose("/World/{}".format(self.arm_name), self.arm_name)        
+        # 发布消息
+        self.world_pose_pub.publish(tf_msg)
 
 class Camera:
     def __init__(self):
@@ -155,13 +191,19 @@ class Camera:
 
         simulation_app.update()
         self.frame = 0
+        self.world_pose_pub = rospy.Publisher('/camera/pose_in_world', TFMessage, queue_size=10)
 
     def rotate(self):
         # Rotate camera by 0.5 degree every frame
         self.xform_api.SetRotate((0, 0, self.frame / 4.0), UsdGeom.XformCommonAPI.RotationOrderXYZ)
         self.frame = self.frame + 1
 
-class RosSubscriber:
+    def pub_pose(self):
+        tf_msg = query_pose("/Camera", 'camera')        
+        # 发布消息
+        self.world_pose_pub.publish(tf_msg)
+
+class SimEnv:
     def __init__(self):
         self.simulation_context = SimulationContext(stage_units_in_meters=1.0)
         simulation_app.update()
@@ -188,19 +230,14 @@ class RosSubscriber:
             self.simulation_context.step(render=True)
 
             if self.simulation_context.is_playing():
-                self.camera.rotate()
                 self.panda_left.update()
                 self.panda_right.update()
-
-                xform_prim = XFormPrim("/World/panda_left")
-                position = xform_prim.get_world_poses()[0]
-                quat = xform_prim.get_world_poses()[1]
-                print("Position (X, Y, Z):", position)
-                print("Orientation (W, X, Y, Z):", quat)
-
+                self.panda_left.pub_pose()
+                self.panda_right.pub_pose()
+                self.camera.pub_pose()
 
         # Cleanup
-        rospy.signal_shutdown("franka subscriber complete")
+        rospy.signal_shutdown("Franka cloth-folding simulation environment complete")
         self.panda_left.close()
         self.panda_right.close()
         self.simulation_context.stop()
@@ -209,7 +246,7 @@ class RosSubscriber:
 
 if __name__ == "__main__":
     rospy.init_node(
-        "ros_subscriber", anonymous=True, disable_signals=True, log_level=rospy.ERROR
+        "franka_cloth_folding", anonymous=True, disable_signals=True, log_level=rospy.ERROR
     )
-    ros_subscriber = RosSubscriber()
-    ros_subscriber.run_simulation()
+    sim_env = SimEnv()
+    sim_env.run_simulation()
