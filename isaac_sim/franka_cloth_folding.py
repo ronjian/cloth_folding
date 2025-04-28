@@ -129,12 +129,12 @@ class Camera:
         # Creating a Camera prim
         camera_prim = UsdGeom.Camera(omni.usd.get_context().get_stage().DefinePrim(CAMERA_STAGE_PATH, "Camera"))
         self.xform_api = UsdGeom.XformCommonAPI(camera_prim)
-        self.xform_api.SetTranslate(Gf.Vec3d(0.8, 0, 1.8))
+        self.xform_api.SetTranslate(Gf.Vec3d(0, 0, 1.8))
         self.xform_api.SetRotate((0, 0, 0), UsdGeom.XformCommonAPI.RotationOrderXYZ)
         camera_prim.GetHorizontalApertureAttr().Set(21)
         camera_prim.GetVerticalApertureAttr().Set(16)
         camera_prim.GetProjectionAttr().Set("perspective")
-        camera_prim.GetFocalLengthAttr().Set(8)
+        camera_prim.GetFocalLengthAttr().Set(16.6)
         camera_prim.GetFocusDistanceAttr().Set(88)
 
         simulation_app.update()
