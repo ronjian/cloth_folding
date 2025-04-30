@@ -96,12 +96,6 @@ class RGBDToPointCloud:
         pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
             rgbd_image, intrinsic)
         
-        # 转换坐标系，使点云朝前
-        pcd.transform([[1, 0, 0, 0],
-                       [0, -1, 0, 0],
-                       [0, 0, -1, 0],
-                       [0, 0, 0, 1]])
-        
         return pcd
     
     def run(self):
