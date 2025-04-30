@@ -66,22 +66,35 @@ class Manipulator:
             waypoints, 0.01, avoid_collisions=True  # 路径点列表  # 步长（米）
         )
         rospy.loginfo("%s | 规划时间：%.2f秒" % (self.arm_name, time.time() - tic))
-
-        if fraction < 1.0:
-            rospy.logerr(
-                "%s | 规划失败，仅完成%.1f%%路径" % (self.arm_name, fraction * 100)
-            )
-            return
         # 执行轨迹
-        self.arm_group.execute(plan, wait=True)
+        if fraction < 1.0:
+            rospy.loginfo(
+                "%s | 规划失败，仅完成%.1f%%路径, 直接运动到目标位置" % (self.arm_name, fraction * 100)
+            )
+            # self.arm_group.set_pose_target(target_pose)
+            # rc = self.arm_group.go(wait=True)
+            # print(rc)
+            # cur_orientation_tolerance = self.arm_group.get_goal_orientation_tolerance()
+            # self.arm_group.get_goal_tolerance()
+            # if cur_orientation_tolerance > math.pi:
+            #     return -1
+            # self.arm_group.set_goal_orientation_tolerance(
+            #     cur_orientation_tolerance + 0.5
+            # )
+            # self.move_straight(target_pose)
+        else:
+            self.arm_group.execute(plan, wait=True)
+            rospy.loginfo("%s | 直线运动完成！" % self.arm_name)
+        return 0
 
-        rospy.loginfo("%s | 直线运动完成！" % self.arm_name)
+    def current_pose(self):
+        return self.arm_group.get_current_pose().pose
 
     def pickup(self):
         self.move_to_home()
         self.move_to_start()
         # 获取当前末端姿态
-        start_pose = self.arm_group.get_current_pose().pose
+        start_pose = self.current_pose()
         # 定义目标点
         target_pose = Pose()
         target_pose.position.x = start_pose.position.x
@@ -95,7 +108,37 @@ class Manipulator:
         # self.move_to_start()
         self.open_gripper()
         self.move_to_home()
-
+    
+    def pick_and_place(self, pick_point, place_point):
+        self.move_to_start()
+        # pick
+        start_pose = self.current_pose()
+        pick_pose = Pose()
+        pick_pose.position.x = pick_point[0]
+        pick_pose.position.y = pick_point[1]
+        pick_pose.position.z = pick_point[2] - 0.015
+        pick_pose.orientation = start_pose.orientation
+        self.move_straight(pick_pose)
+        self.close_gripper()
+        # up
+        pick_pose.position.z = 0.2
+        self.move_straight(pick_pose)
+        # transfer
+        place_pose = Pose()
+        place_pose.position.x = place_point[0]
+        place_pose.position.y = place_point[1]
+        place_pose.position.z = 0.2
+        place_pose.orientation = start_pose.orientation
+        self.move_straight(place_pose)
+        # place
+        place_pose.position.z = place_point[2] + 0.01
+        self.move_straight(place_pose)
+        self.open_gripper()
+        # drawback
+        place_pose.position.z = place_point[2] + 0.02
+        self.move_straight(place_pose)
+        self.move_to_start()
+        self.move_to_home()
 
 if __name__ == "__main__":
     rospy.init_node("franka_cartesian_move")
