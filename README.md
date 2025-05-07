@@ -11,10 +11,13 @@ ubuntu20.04上安装ros1 noetic、moveit1
 isaacsim/.vscode下包含vscode开发中用到的环境配置，
 所以在isaacsim目录下打开vscode程序进行开发。
 
+修改```panda_moveit_config```包里面的```launch/demo.launch```文件中```tf_prefix```
+![tf_prefix](./assets/tf_prefix.jpg)
+
 启动franka panda机械臂：
 ```shell
-ROS_NAMESPACE=panda_left roslaunch panda_moveit_config demo.launch rviz_tutorial:=true
-ROS_NAMESPACE=panda_right roslaunch panda_moveit_config demo.launch rviz_tutorial:=true
+ROS_NAMESPACE=panda_left roslaunch panda_moveit_config demo.launch rviz_tutorial:=true tf_prefix:=panda_left
+ROS_NAMESPACE=panda_right roslaunch panda_moveit_config demo.launch rviz_tutorial:=true tf_prefix:=panda_right
 ```
 在弹出的rviz窗口中点击```Add```按钮，选择```MotionPlanning```
 
