@@ -7,6 +7,29 @@ from control_msgs.msg import GripperCommandActionGoal
 from threading import Thread
 import copy
 import tf
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+
+def scale_plan_speed(plan, speed_scale=1.0):
+    # 修改轨迹时间参数
+    new_trajectory = JointTrajectory()
+    new_trajectory.joint_names = plan.joint_trajectory.joint_names
+
+    time_scaling = 1.0 / speed_scale
+
+    # 重新计算各点时间
+    for i, point in enumerate(plan.joint_trajectory.points):
+        new_point = JointTrajectoryPoint()
+        new_point.positions = point.positions
+        new_point.velocities = point.velocities
+        new_point.accelerations = point.accelerations
+        new_point.effort = point.effort
+        new_point.time_from_start = rospy.Duration(time_scaling * point.time_from_start.to_sec())
+        # rospy.loginfo("time_from_start: from %s to %s" % (point.time_from_start, new_point.time_from_start))
+        new_trajectory.points.append(new_point)
+
+    # 使用修改后的轨迹
+    plan.joint_trajectory = new_trajectory
+    return plan
 
 class Manipulator:
     HOME_POSITION = [p * math.pi / 180.0 for p in [0, -45, 0, -45, 0, 90, 45]]
@@ -63,7 +86,7 @@ class Manipulator:
         self.move_gripper(0.0)
         rospy.loginfo("%s | 夹爪闭合完成！" % self.arm_name)
 
-    def move_straight(self, target_pose: Pose):
+    def move_straight(self, target_pose: Pose, speed_scale=1.0):
         current_pose = self.current_pose
         waypoints = [current_pose, target_pose]
         (plan, fraction) = self.arm_group.compute_cartesian_path(
@@ -74,7 +97,11 @@ class Manipulator:
             rospy.loginfo(
                 "%s | 规划失败，仅完成%.1f%%路径" % (self.arm_name, fraction * 100)
             )
+            # self.arm_group.set_pose_target(target_pose)
+            # self.arm_group.go(wait=True)
             return -1
+        if speed_scale != 1.0:
+            plan = scale_plan_speed(plan, speed_scale)
         self.arm_group.execute(plan, wait=True)
         rospy.loginfo("%s | 直线运动完成！" % self.arm_name)
         return 0
@@ -123,7 +150,6 @@ class Manipulator:
     
     def pick_and_place(self, pick_point, place_point):
         picking_height = 0.3
-        gripper_offset = 0.01
         rospy.loginfo(f"{self.arm_name} | 捡起点：{pick_point}，放下点：{place_point}")
         rospy.loginfo("%s | 运动到起始位置" % self.arm_name)
         self.move_to_start()
@@ -136,7 +162,7 @@ class Manipulator:
         pick_pose = Pose()
         pick_pose.position.x = pick_point[0]
         pick_pose.position.y = pick_point[1]
-        pick_pose.position.z = pick_point[2] - gripper_offset
+        pick_pose.position.z = pick_point[2]
         pick_pose.orientation = current_pose.orientation
         rc = self.move_straight(pick_pose)
         if rc < 0:
@@ -157,7 +183,7 @@ class Manipulator:
         place_pose.position.y = place_point[1]
         place_pose.position.z = picking_height
         place_pose.orientation = current_pose.orientation
-        rc = self.move_straight(place_pose)
+        rc = self.move_straight(place_pose, speed_scale=0.2)
         if rc < 0:
             return -1
         rospy.loginfo("%s | 运动到放置位置" % self.arm_name)
@@ -169,11 +195,11 @@ class Manipulator:
         rospy.loginfo("%s | 打开夹爪" % self.arm_name)
         self.open_gripper()
         # drawback
-        rospy.loginfo("%s | 运动到抽回位置" % self.arm_name)
-        place_pose.position.z = place_point[2] + 0.10
-        rc = self.move_straight(place_pose)
-        if rc < 0:
-            return -1
+        # rospy.loginfo("%s | 运动到抽回位置" % self.arm_name)
+        # place_pose.position.z = picking_height
+        # rc = self.move_straight(place_pose)
+        # if rc < 0:
+        #     return -1
         self.move_to_start()
         self.move_to_home()
 
