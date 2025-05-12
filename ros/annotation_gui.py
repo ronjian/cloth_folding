@@ -93,11 +93,13 @@ class ImageDisplayWidget(QWidget):
             self.points = []
         elif mode == 'fold':
             self.points = []
+        elif mode == 'dual_fold':
+            self.points = []
         self.update()
     
     def mousePressEvent(self, event):
         """鼠标点击事件处理"""
-        if event.button() == Qt.LeftButton and self.mode in ['flatten', 'fold']:
+        if event.button() == Qt.LeftButton and self.mode in ['flatten', 'fold', 'dual_fold']:
             if self.display_rect and self.original_image_size:
                 # 将窗口坐标转换为原始图像坐标
                 x = (event.pos().x() - self.display_rect.x()) * self.original_image_size[0] / self.display_rect.width()
@@ -107,6 +109,8 @@ class ImageDisplayWidget(QWidget):
                     if self.mode == 'flatten' and len(self.points) < 2:
                         self.points.append(QPoint(int(x), int(y)))
                     elif self.mode == 'fold' and len(self.points) < 2:
+                        self.points.append(QPoint(int(x), int(y)))
+                    elif self.mode == 'dual_fold' and len(self.points) < 4:
                         self.points.append(QPoint(int(x), int(y)))
                     self.update()
     
@@ -146,7 +150,7 @@ class ImageDisplayWidget(QWidget):
                     display_y = self.display_rect.y() + point.y() * scale_y
                     painter.drawEllipse(QPoint(int(display_x), int(display_y)), 5, 5)
             
-            elif self.mode == 'fold' and self.points:
+            elif self.mode in ['fold', 'dual_fold'] and self.points:
                 if len(self.points) >= 1:
                     painter.setPen(QPen(QColor(0, 0, 255), 5))
                     display_x = self.display_rect.x() + self.points[0].x() * scale_x
@@ -166,6 +170,28 @@ class ImageDisplayWidget(QWidget):
                     start_y = self.display_rect.y() + self.points[0].y() * scale_y
                     end_x = self.display_rect.x() + self.points[1].x() * scale_x
                     end_y = self.display_rect.y() + self.points[1].y() * scale_y
+                    painter.drawLine(QPoint(int(start_x), int(start_y)), 
+                                   QPoint(int(end_x), int(end_y)))
+
+                if len(self.points) >= 3:
+                    painter.setPen(QPen(QColor(0, 0, 255), 5))
+                    display_x = self.display_rect.x() + self.points[2].x() * scale_x
+                    display_y = self.display_rect.y() + self.points[2].y() * scale_y
+                    painter.drawEllipse(QPoint(int(display_x), int(display_y)), 5, 5)
+
+                if len(self.points) >= 4:
+                    painter.setPen(QPen(QColor(255, 0, 0), 5))
+                    display_x = self.display_rect.x() + self.points[3].x() * scale_x
+                    display_y = self.display_rect.y() + self.points[3].y() * scale_y
+                    painter.drawEllipse(QPoint(int(display_x), int(display_y)), 5, 5)
+                    
+                    # 绘制虚线连接线
+                    pen = QPen(QColor(0, 255, 0), 2, Qt.DashLine)
+                    painter.setPen(pen)
+                    start_x = self.display_rect.x() + self.points[2].x() * scale_x
+                    start_y = self.display_rect.y() + self.points[2].y() * scale_y
+                    end_x = self.display_rect.x() + self.points[3].x() * scale_x
+                    end_y = self.display_rect.y() + self.points[3].y() * scale_y
                     painter.drawLine(QPoint(int(start_x), int(start_y)), 
                                    QPoint(int(end_x), int(end_y)))
 
@@ -207,9 +233,9 @@ class MainWindow(QMainWindow):
         self.fold_btn.clicked.connect(lambda: self.image_display.set_mode('fold'))
         control_layout.addWidget(self.fold_btn)
         
-        self.crease_btn = QPushButton("对折")
-        self.crease_btn.setEnabled(False)  # 暂时不实现
-        control_layout.addWidget(self.crease_btn)
+        self.dual_fold_btn = QPushButton("对折")
+        self.dual_fold_btn.clicked.connect(lambda: self.image_display.set_mode('dual_fold'))
+        control_layout.addWidget(self.dual_fold_btn)
         
         self.start_btn = QPushButton("开始")
         self.start_btn.clicked.connect(self.start_processing)
@@ -306,7 +332,10 @@ class MainWindow(QMainWindow):
         world_points = self.calculate_world_coordinates(points)
         
         # 显示结果
-        self.status_label.setText(f"状态: 计算完成\n点1: {world_points[0]}\n点2: {world_points[1]}")
+        if len(world_points) == 2:
+            self.status_label.setText(f"状态: 计算完成\n点1: {world_points[0]}\n点2: {world_points[1]}")
+        elif len(world_points) == 4:
+            self.status_label.setText(f"状态: 计算完成\n点1: {world_points[0]}\n点2: {world_points[1]}\n点3: {world_points[2]}\n点4: {world_points[3]}")
 
         if self.image_display.mode == "fold":
             if world_points[0][0] < 0:
@@ -318,6 +347,23 @@ class MainWindow(QMainWindow):
             pick_point = R.dot(world_points[0]) + T
             place_point = R.dot(world_points[1]) + T
             Thread(target=arm.pick_and_place, args=(pick_point, place_point)).start()
+        elif self.image_display.mode == "dual_fold":
+            if world_points[0][0] < 0:
+                arm1 = self.panda_left
+                R1, T1 = get_R_T(inverse_transform(self.left_arm_pose))
+                arm2 = self.panda_right
+                R2, T2 = get_R_T(inverse_transform(self.right_arm_pose))
+            else:
+                arm1 = self.panda_right
+                R1, T1 = get_R_T(inverse_transform(self.right_arm_pose))
+                arm2 = self.panda_left
+                R2, T2 = get_R_T(inverse_transform(self.left_arm_pose))
+            pick_point1 = R1.dot(world_points[0]) + T1
+            place_point1 = R1.dot(world_points[1]) + T1
+            pick_point2 = R2.dot(world_points[2]) + T2
+            place_point2 = R2.dot(world_points[3]) + T2
+            Thread(target=arm1.pick_and_place, args=(pick_point1, place_point1)).start()
+            Thread(target=arm2.pick_and_place, args=(pick_point2, place_point2)).start()
     
     def check_data_ready(self):
         """检查所需数据是否已准备好"""
