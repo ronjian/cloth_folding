@@ -11,6 +11,8 @@ import omni.graph.core as og
 import usdrt.Sdf
 from isaacsim.core.api import SimulationContext
 from isaacsim.core.prims import XFormPrim
+import omni.usd
+from omni.physx.scripts import utils
 
 # enable ROS bridge extension
 enable_extension("isaacsim.ros1.bridge")
@@ -88,7 +90,7 @@ class Arm:
             "panda_joint6",
             "panda_joint7",
         ]
-        self.gripper_pos = 0.04
+        self.last_gripper_pos = self.gripper_pos = 0.04
         self.arm_name = arm_name
         self.world_pose_pub = rospy.Publisher('/{}/pose_in_world'.format(arm_name), TFMessage, queue_size=10)
 
@@ -117,6 +119,20 @@ class Arm:
             self.dc.find_articulation_dof(articulation, "panda_finger_joint2"),
             self.gripper_pos,
         )
+        if self.last_gripper_pos != self.gripper_pos:
+            # hack夹爪和布料的碰撞
+            stage = omni.usd.get_context().get_stage()
+            leftfinger = stage.GetPrimAtPath("/World/{}/panda_leftfinger/geometry/panda_leftfinger".format(self.arm_name))
+            rightfinger = stage.GetPrimAtPath("/World/{}/panda_rightfinger/geometry/panda_rightfinger".format(self.arm_name))
+            if self.gripper_pos > self.last_gripper_pos:
+                carb.log_warn("夹爪打开, 消除夹抓碰撞")
+                utils.removeCollider(leftfinger)
+                utils.removeCollider(rightfinger)
+            else:
+                carb.log_warn("夹爪闭合, 增加夹抓碰撞（碰撞形状为SDF）")
+                utils.setStaticCollider(leftfinger, approximationShape="sdf")
+                utils.setStaticCollider(rightfinger, approximationShape="sdf")
+            self.last_gripper_pos = self.gripper_pos
 
     def pub_pose(self):
         tf_msg = query_pose("/World/{}".format(self.arm_name), self.arm_name)        
