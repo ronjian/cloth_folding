@@ -194,6 +194,18 @@ class ImageDisplayWidget(QWidget):
                     end_y = self.display_rect.y() + self.points[3].y() * scale_y
                     painter.drawLine(QPoint(int(start_x), int(start_y)), 
                                    QPoint(int(end_x), int(end_y)))
+            elif self.mode in ['flatten'] and self.points:
+                if len(self.points) >= 1:
+                    painter.setPen(QPen(QColor(0, 0, 255), 5))
+                    display_x = self.display_rect.x() + self.points[0].x() * scale_x
+                    display_y = self.display_rect.y() + self.points[0].y() * scale_y
+                    painter.drawEllipse(QPoint(int(display_x), int(display_y)), 5, 5)
+
+                if len(self.points) >= 2:
+                    painter.setPen(QPen(QColor(0, 0, 255), 5))
+                    display_x = self.display_rect.x() + self.points[1].x() * scale_x
+                    display_y = self.display_rect.y() + self.points[1].y() * scale_y
+                    painter.drawEllipse(QPoint(int(display_x), int(display_y)), 5, 5)
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -268,8 +280,10 @@ class MainWindow(QMainWindow):
         # 机械臂
         self.panda_left = Manipulator("panda_left")
         self.panda_left.move_to_home()
+        self.panda_left.open_gripper()
         self.panda_right = Manipulator("panda_right")
         self.panda_right.move_to_home()
+        self.panda_right.open_gripper()
     
     def rgb_callback(self, msg):
         """RGB图像回调"""
@@ -362,8 +376,23 @@ class MainWindow(QMainWindow):
             place_point1 = R1.dot(world_points[1]) + T1
             pick_point2 = R2.dot(world_points[2]) + T2
             place_point2 = R2.dot(world_points[3]) + T2
-            Thread(target=arm1.pick_and_place, args=(pick_point1, place_point1)).start()
-            Thread(target=arm2.pick_and_place, args=(pick_point2, place_point2)).start()
+            Thread(target=arm1.pick_and_place, args=(pick_point1, place_point1, True)).start()
+            Thread(target=arm2.pick_and_place, args=(pick_point2, place_point2, True)).start()
+        elif self.image_display.mode == "flatten":
+            if world_points[0][0] < 0:
+                arm1 = self.panda_left
+                R1, T1 = get_R_T(inverse_transform(self.left_arm_pose))
+                arm2 = self.panda_right
+                R2, T2 = get_R_T(inverse_transform(self.right_arm_pose))
+            else:
+                arm1 = self.panda_right
+                R1, T1 = get_R_T(inverse_transform(self.right_arm_pose))
+                arm2 = self.panda_left
+                R2, T2 = get_R_T(inverse_transform(self.left_arm_pose))
+            pick_point1 = R1.dot(world_points[0]) + T1
+            pick_point2 = R2.dot(world_points[1]) + T2
+            Thread(target=arm1.flatten, args=(pick_point1, True)).start()
+            Thread(target=arm2.flatten, args=(pick_point2, True)).start()
     
     def check_data_ready(self):
         """检查所需数据是否已准备好"""

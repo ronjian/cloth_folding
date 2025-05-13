@@ -8,6 +8,10 @@ from threading import Thread
 import copy
 import tf
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+import threading
+
+# 创建屏障，设置需要等待的线程数（这里是2）
+barrier = threading.Barrier(2)
 
 def scale_plan_speed(plan, speed_scale=1.0):
     # 修改轨迹时间参数
@@ -34,6 +38,7 @@ def scale_plan_speed(plan, speed_scale=1.0):
 class Manipulator:
     HOME_POSITION = [p * math.pi / 180.0 for p in [0, -45, 0, -45, 0, 90, 45]]
     START_POSITION = [p * math.pi / 180.0 for p in [0, -45, 0, -135, 0, 90, 45]]
+    EXTENSION_POSITION = [p * math.pi / 180.0 for p in [0, -45, 0, -135, 0, 145, 45]]
     def __init__(self, arm_name):
         self.arm_group = MoveGroupCommander(name="panda_manipulator"
                                             , robot_description="/{}/robot_description".format(arm_name)
@@ -60,6 +65,10 @@ class Manipulator:
     def move_to_start(self):
         self.move_to_joints(self.START_POSITION)
         rospy.loginfo("%s | 运动到起始位置完成！" % self.arm_name)
+
+    def move_to_extension(self):
+        self.move_to_joints(self.EXTENSION_POSITION)
+        rospy.loginfo("%s | 运动到扩展位置完成！" % self.arm_name)
 
     def move_to_home(self):
         self.move_to_joints(self.HOME_POSITION)
@@ -148,12 +157,14 @@ class Manipulator:
         self.open_gripper()
         self.move_to_home()
     
-    def pick_and_place(self, pick_point, place_point):
+    def pick_and_place(self, pick_point, place_point, sync = False):
         picking_height = 0.3
         rospy.loginfo(f"{self.arm_name} | 捡起点：{pick_point}，放下点：{place_point}")
         rospy.loginfo("%s | 运动到起始位置" % self.arm_name)
         self.move_to_start()
-        # pick
+        self.open_gripper()
+        if sync:
+            barrier.wait()
         rospy.loginfo("%s | 运动到抓取位置" % self.arm_name)
         current_joints = copy.copy(self.START_POSITION)
         current_joints[0] += math.atan2(pick_point[1], pick_point[0])
@@ -162,20 +173,22 @@ class Manipulator:
         pick_pose = Pose()
         pick_pose.position.x = pick_point[0]
         pick_pose.position.y = pick_point[1]
-        pick_pose.position.z = pick_point[2]
+        pick_pose.position.z = max(pick_point[2] - 0.005, 0.01)
         pick_pose.orientation = current_pose.orientation
         rc = self.move_straight(pick_pose)
         if rc < 0:
             return -1
         rospy.loginfo("%s | 关闭夹爪" % self.arm_name)
         self.close_gripper()
-        # up
+        if sync:
+            barrier.wait()
         rospy.loginfo("%s | 运动到提起位置" % self.arm_name)
         pick_pose.position.z = picking_height
         rc = self.move_straight(pick_pose)
         if rc < 0:
             return -1
-        # transfer
+        if sync:
+            barrier.wait()
         rospy.loginfo("%s | 运动到转移位置" % self.arm_name)
         current_pose = self.current_pose
         place_pose = Pose()
@@ -186,20 +199,94 @@ class Manipulator:
         rc = self.move_straight(place_pose, speed_scale=0.2)
         if rc < 0:
             return -1
+        if sync:
+            barrier.wait()
         rospy.loginfo("%s | 运动到放置位置" % self.arm_name)
         # place
         place_pose.position.z = place_point[2] + 0.05
         rc = self.move_straight(place_pose)
         if rc < 0:
             return -1
+        if sync:
+            barrier.wait()
         rospy.loginfo("%s | 打开夹爪" % self.arm_name)
         self.open_gripper()
-        # drawback
-        # rospy.loginfo("%s | 运动到抽回位置" % self.arm_name)
-        # place_pose.position.z = picking_height
-        # rc = self.move_straight(place_pose)
-        # if rc < 0:
-        #     return -1
+        rospy.loginfo("%s | 收回机械臂" % self.arm_name)
+        self.move_to_start()
+        self.move_to_home()
+
+    def flatten(self, pick_point, sync = False):
+        self.open_gripper()
+        self.move_to_extension()
+        extension_orientation = self.current_pose.orientation
+        picking_height = 0.5
+        rospy.loginfo(f"{self.arm_name} | 捡起点：{pick_point}")
+        rospy.loginfo("%s | 运动到起始位置" % self.arm_name)
+        # pick
+        rospy.loginfo("%s | 运动到抓取位置" % self.arm_name)
+        current_joints = copy.copy(self.START_POSITION)
+        current_joints[0] += math.atan2(pick_point[1], pick_point[0])
+        self.move_to_joints(current_joints) 
+        current_pose = self.current_pose
+        pick_pose = Pose()
+        pick_pose.position.x = pick_point[0]
+        pick_pose.position.y = pick_point[1]
+        pick_pose.position.z = max(pick_point[2] - 0.005, 0.01)
+        pick_pose.orientation = current_pose.orientation
+        rc = self.move_straight(pick_pose)
+        if rc < 0:
+            return -1
+        rospy.loginfo("%s | 关闭夹爪" % self.arm_name)
+        self.close_gripper()
+        if sync:
+            barrier.wait()
+        # up
+        rospy.loginfo("%s | 运动到提起位置" % self.arm_name)
+        pick_pose.position.z = picking_height
+        rc = self.move_straight(pick_pose, speed_scale=0.2)
+        if rc < 0:
+            return -1
+        if sync:
+            barrier.wait()
+        rospy.loginfo("%s | 运动到铺平起始位置" % self.arm_name)
+        flatten_height = 0.65
+        flatten_y = 0.55
+        flatten_x = 0.55
+        start_pose = Pose()
+        start_pose.position.x = flatten_x
+        if self.arm_name == 'panda_left':
+            start_pose.position.y = -flatten_y
+        else:
+            start_pose.position.y = flatten_y
+        start_pose.position.z = flatten_height
+        start_pose.orientation = extension_orientation
+        rc = self.move_straight(start_pose, 0.2)
+        if rc < 0:
+            return -1
+        if sync:
+            barrier.wait()
+        rospy.loginfo("%s | 运动到铺平结束位置" % self.arm_name)
+        end_pose = Pose()
+        end_pose.position.x = flatten_x
+        if self.arm_name == 'panda_left':
+            end_pose.position.y = flatten_y
+        else:
+            end_pose.position.y = -flatten_y
+        end_pose.position.z = 0.02
+        end_pose.orientation = current_pose.orientation
+        rc = self.move_straight(end_pose, 0.2)
+        if rc < 0:
+            return -1
+        if sync:
+            barrier.wait()
+        rospy.loginfo("%s | 打开夹爪" % self.arm_name)
+        self.open_gripper()
+        rospy.loginfo("%s | 抬起机械臂" % self.arm_name)
+        end_pose.position.z = 0.2
+        rc = self.move_straight(end_pose, 0.2)
+        if rc < 0:
+            return -1
+        rospy.loginfo("%s | 收回机械臂" % self.arm_name)
         self.move_to_start()
         self.move_to_home()
 
