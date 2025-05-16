@@ -376,8 +376,8 @@ class MainWindow(QMainWindow):
             place_point1 = R1.dot(world_points[1]) + T1
             pick_point2 = R2.dot(world_points[2]) + T2
             place_point2 = R2.dot(world_points[3]) + T2
-            Thread(target=arm1.pick_and_place, args=(pick_point1, place_point1, True)).start()
-            Thread(target=arm2.pick_and_place, args=(pick_point2, place_point2, True)).start()
+            Thread(target=arm1.pick_and_place, args=(pick_point1, place_point1, True, True)).start()
+            Thread(target=arm2.pick_and_place, args=(pick_point2, place_point2, True, True)).start()
         elif self.image_display.mode == "flatten":
             if world_points[0][0] < 0:
                 arm1 = self.panda_left

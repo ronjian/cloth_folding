@@ -40,3 +40,8 @@ python ros/franka_pickup.py
 python ros/rgbd_to_pointcloud.py
 pcl_viewer -ax 1.0 tmp.pcd
 ```
+
+用系统自带的python环境，启动叠衣服数据标注工具
+```shell
+python ros/annotation_gui.py
+```

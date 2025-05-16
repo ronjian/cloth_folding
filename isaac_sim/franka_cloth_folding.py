@@ -224,7 +224,7 @@ class SimEnv:
         self.simulation_context = SimulationContext(stage_units_in_meters=1.0)
         simulation_app.update()
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        stage_path = os.path.join(current_dir, "franka_scene/franka_scene_1.usd")
+        stage_path = os.path.join(current_dir, "franka_scene/franka_scene_2.usd")
 
         omni.usd.get_context().open_stage(stage_path)
 

@@ -157,7 +157,7 @@ class Manipulator:
         self.open_gripper()
         self.move_to_home()
     
-    def pick_and_place(self, pick_point, place_point, sync = False):
+    def pick_and_place(self, pick_point, place_point, sync = False, deep = False):
         picking_height = 0.3
         rospy.loginfo(f"{self.arm_name} | 捡起点：{pick_point}，放下点：{place_point}")
         rospy.loginfo("%s | 运动到起始位置" % self.arm_name)
@@ -173,7 +173,12 @@ class Manipulator:
         pick_pose = Pose()
         pick_pose.position.x = pick_point[0]
         pick_pose.position.y = pick_point[1]
-        pick_pose.position.z = max(pick_point[2] - 0.005, 0.01)
+        if deep:
+            z_height = max(pick_point[2] - 0.04, 0.01) 
+        else:
+            z_height = max(pick_point[2] - 0.02, 0.01)
+        rospy.loginfo("%s | 运动到抓取高度 %s" % (self.arm_name, z_height))
+        pick_pose.position.z = z_height
         pick_pose.orientation = current_pose.orientation
         rc = self.move_straight(pick_pose)
         if rc < 0:
@@ -231,7 +236,9 @@ class Manipulator:
         pick_pose = Pose()
         pick_pose.position.x = pick_point[0]
         pick_pose.position.y = pick_point[1]
-        pick_pose.position.z = max(pick_point[2] - 0.005, 0.01)
+        z_height = max(pick_point[2] - 0.02, 0.01)
+        rospy.loginfo("%s | 运动到抓取高度 %s" % (self.arm_name, z_height))
+        pick_pose.position.z = z_height
         pick_pose.orientation = current_pose.orientation
         rc = self.move_straight(pick_pose)
         if rc < 0:
