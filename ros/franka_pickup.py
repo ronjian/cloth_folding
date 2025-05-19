@@ -62,6 +62,16 @@ class Manipulator:
         self.arm_group.go(wait=True)
         return
 
+    def extend_ee(self):
+        current_joints = self.arm_group.get_current_joint_values()
+        current_joints[5] = 145 * math.pi / 180.0
+        self.move_to_joints(current_joints)
+
+    def retract_ee(self):
+        current_joints = self.arm_group.get_current_joint_values()
+        current_joints[5] = 60 * math.pi / 180.0
+        self.move_to_joints(current_joints)
+
     def move_to_start(self):
         self.move_to_joints(self.START_POSITION)
         rospy.loginfo("%s | 运动到起始位置完成！" % self.arm_name)
@@ -95,7 +105,13 @@ class Manipulator:
         self.move_gripper(0.0)
         rospy.loginfo("%s | 夹爪闭合完成！" % self.arm_name)
 
-    def move_straight(self, target_pose: Pose, speed_scale=1.0):
+    def target_distance(self, target_pose: Pose):
+        x = target_pose.position.x
+        y = target_pose.position.y
+        return math.sqrt(x * x + y * y)
+
+    def move_straight(self, target_pose: Pose, speed_scale=1.0, retry = False):
+        if retry: rospy.loginfo("%s | 直线运动重试中..." % self.arm_name)
         current_pose = self.current_pose
         waypoints = [current_pose, target_pose]
         (plan, fraction) = self.arm_group.compute_cartesian_path(
@@ -106,9 +122,17 @@ class Manipulator:
             rospy.loginfo(
                 "%s | 规划失败，仅完成%.1f%%路径" % (self.arm_name, fraction * 100)
             )
-            # self.arm_group.set_pose_target(target_pose)
-            # self.arm_group.go(wait=True)
-            return -1
+            if retry:
+                return -1
+            else:
+                dis = self.target_distance(target_pose)
+                if dis > 0.3:
+                    self.extend_ee()
+                else:
+                    self.retract_ee()
+                target_pose.orientation = self.current_pose.orientation
+                rc = self.move_straight(target_pose, speed_scale=speed_scale, retry=True)
+                return rc
         if speed_scale != 1.0:
             plan = scale_plan_speed(plan, speed_scale)
         self.arm_group.execute(plan, wait=True)
@@ -276,9 +300,9 @@ class Manipulator:
         end_pose = Pose()
         end_pose.position.x = flatten_x
         if self.arm_name == 'panda_left':
-            end_pose.position.y = flatten_y
+            end_pose.position.y = 0.5
         else:
-            end_pose.position.y = -flatten_y
+            end_pose.position.y = -0.5
         end_pose.position.z = 0.02
         end_pose.orientation = current_pose.orientation
         rc = self.move_straight(end_pose, 0.2)
@@ -342,6 +366,11 @@ class Manipulator:
         rospy.sleep(2)
         rospy.loginfo("%s | 收回机械臂" % self.arm_name)
         self.move_to_home()
+    
+    def reset(self):
+        self.open_gripper()
+        self.move_to_home()
+        rospy.loginfo("%s | 复位完成！" % self.arm_name)
 
 if __name__ == "__main__":
     rospy.init_node("franka_cartesian_move")

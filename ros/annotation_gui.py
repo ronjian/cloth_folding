@@ -230,6 +230,14 @@ class MainWindow(QMainWindow):
         layout.addWidget(control_panel, 1)
         
         # 添加按钮
+        self.reset_btn = QPushButton("重置")
+        self.reset_btn.clicked.connect(self.reset)
+        control_layout.addWidget(self.reset_btn)
+        
+        self.random_btn = QPushButton("随机")
+        self.random_btn.clicked.connect(lambda: self.image_display.set_mode('random'))
+        control_layout.addWidget(self.random_btn)
+
         self.flatten_btn = QPushButton("铺平")
         self.flatten_btn.clicked.connect(lambda: self.image_display.set_mode('flatten'))
         control_layout.addWidget(self.flatten_btn)
@@ -245,14 +253,6 @@ class MainWindow(QMainWindow):
         self.start_btn = QPushButton("开始")
         self.start_btn.clicked.connect(self.start_processing)
         control_layout.addWidget(self.start_btn)
-        
-        self.reset_btn = QPushButton("重置")
-        self.reset_btn.clicked.connect(lambda: self.image_display.set_mode('reset'))
-        control_layout.addWidget(self.reset_btn)
-        
-        self.random_btn = QPushButton("随机")
-        self.random_btn.clicked.connect(lambda: self.image_display.set_mode('random'))
-        control_layout.addWidget(self.random_btn)
 
         # 状态标签
         self.status_label = QLabel("状态: 等待输入")
@@ -276,11 +276,8 @@ class MainWindow(QMainWindow):
 
         # 机械臂
         self.panda_left = Manipulator("panda_left")
-        self.panda_left.move_to_home()
-        self.panda_left.open_gripper()
         self.panda_right = Manipulator("panda_right")
-        self.panda_right.move_to_home()
-        self.panda_right.open_gripper()
+        self.reset()
     
     def rgb_callback(self, msg):
         """RGB图像回调"""
@@ -325,7 +322,13 @@ class MainWindow(QMainWindow):
         """更新图像显示"""
         if self.cv_rgb_image is not None:
             self.image_display.set_image(self.cv_rgb_image)
-    
+
+    def reset(self):
+        """重置机械臂"""
+        Thread(target=self.panda_left.reset, args=()).start()
+        Thread(target=self.panda_right.reset, args=()).start()
+        return
+
     def start_processing(self):
         """开始处理按钮点击事件"""
         # 检查数据是否完整
