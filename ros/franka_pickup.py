@@ -297,6 +297,52 @@ class Manipulator:
         self.move_to_start()
         self.move_to_home()
 
+    def pick_and_drop(self, pick_point):
+        picking_height = 0.3
+        rospy.loginfo(f"{self.arm_name} | 捡起点：{pick_point}")
+        rospy.loginfo("%s | 运动到起始位置" % self.arm_name)
+        self.move_to_start()
+        self.open_gripper()
+        rospy.loginfo("%s | 运动到抓取位置" % self.arm_name)
+        current_joints = copy.copy(self.START_POSITION)
+        current_joints[0] += math.atan2(pick_point[1], pick_point[0])
+        self.move_to_joints(current_joints) 
+        current_pose = self.current_pose
+        pick_pose = Pose()
+        pick_pose.position.x = pick_point[0]
+        pick_pose.position.y = pick_point[1]
+        z_height = max(pick_point[2] - 0.04, 0.01) 
+        rospy.loginfo("%s | 运动到抓取高度 %s" % (self.arm_name, z_height))
+        pick_pose.position.z = z_height
+        pick_pose.orientation = current_pose.orientation
+        rc = self.move_straight(pick_pose)
+        if rc < 0:
+            return -1
+        rospy.loginfo("%s | 关闭夹爪" % self.arm_name)
+        self.close_gripper()
+        rospy.loginfo("%s | 运动到提起位置" % self.arm_name)
+        pick_pose.position.z = picking_height
+        rc = self.move_straight(pick_pose)
+        if rc < 0:
+            return -1
+        rospy.loginfo("%s | 运动到丢下位置" % self.arm_name)
+        drop_pose = Pose()
+        drop_pose.position.x = 0.75
+        drop_pose.position.y = 0.0
+        drop_pose.position.z = 0.75
+        drop_pose.orientation.x = -0.8870233918125237
+        drop_pose.orientation.y = -1.3366887322203058e-05
+        drop_pose.orientation.z = -0.461724486616894
+        drop_pose.orientation.w = 2.5633932447909884e-05
+        rc = self.move_straight(drop_pose, 0.2)
+        if rc < 0:
+            return -1
+        rospy.loginfo("%s | 打开夹爪" % self.arm_name)
+        self.open_gripper()
+        rospy.sleep(2)
+        rospy.loginfo("%s | 收回机械臂" % self.arm_name)
+        self.move_to_home()
+
 if __name__ == "__main__":
     rospy.init_node("franka_cartesian_move")
     panda_left = Manipulator("panda_left")

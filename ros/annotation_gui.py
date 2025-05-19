@@ -89,17 +89,13 @@ class ImageDisplayWidget(QWidget):
     def set_mode(self, mode):
         """设置当前交互模式"""
         self.mode = mode
-        if mode == 'flatten':
-            self.points = []
-        elif mode == 'fold':
-            self.points = []
-        elif mode == 'dual_fold':
-            self.points = []
+        assert mode in ['flatten', 'fold', 'dual_fold', 'random']
+        self.points = []
         self.update()
     
     def mousePressEvent(self, event):
         """鼠标点击事件处理"""
-        if event.button() == Qt.LeftButton and self.mode in ['flatten', 'fold', 'dual_fold']:
+        if event.button() == Qt.LeftButton and self.mode in ['flatten', 'fold', 'dual_fold', 'random']:
             if self.display_rect and self.original_image_size:
                 # 将窗口坐标转换为原始图像坐标
                 x = (event.pos().x() - self.display_rect.x()) * self.original_image_size[0] / self.display_rect.width()
@@ -111,6 +107,8 @@ class ImageDisplayWidget(QWidget):
                     elif self.mode == 'fold' and len(self.points) < 2:
                         self.points.append(QPoint(int(x), int(y)))
                     elif self.mode == 'dual_fold' and len(self.points) < 4:
+                        self.points.append(QPoint(int(x), int(y)))
+                    elif self.mode == 'random' and len(self.points) < 1:
                         self.points.append(QPoint(int(x), int(y)))
                     self.update()
     
@@ -194,18 +192,13 @@ class ImageDisplayWidget(QWidget):
                     end_y = self.display_rect.y() + self.points[3].y() * scale_y
                     painter.drawLine(QPoint(int(start_x), int(start_y)), 
                                    QPoint(int(end_x), int(end_y)))
-            elif self.mode in ['flatten'] and self.points:
+            elif self.mode == 'random' and self.points:
                 if len(self.points) >= 1:
                     painter.setPen(QPen(QColor(0, 0, 255), 5))
                     display_x = self.display_rect.x() + self.points[0].x() * scale_x
                     display_y = self.display_rect.y() + self.points[0].y() * scale_y
                     painter.drawEllipse(QPoint(int(display_x), int(display_y)), 5, 5)
 
-                if len(self.points) >= 2:
-                    painter.setPen(QPen(QColor(0, 0, 255), 5))
-                    display_x = self.display_rect.x() + self.points[1].x() * scale_x
-                    display_y = self.display_rect.y() + self.points[1].y() * scale_y
-                    painter.drawEllipse(QPoint(int(display_x), int(display_y)), 5, 5)
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -257,6 +250,10 @@ class MainWindow(QMainWindow):
         self.reset_btn.clicked.connect(lambda: self.image_display.set_mode('reset'))
         control_layout.addWidget(self.reset_btn)
         
+        self.random_btn = QPushButton("随机")
+        self.random_btn.clicked.connect(lambda: self.image_display.set_mode('random'))
+        control_layout.addWidget(self.random_btn)
+
         # 状态标签
         self.status_label = QLabel("状态: 等待输入")
         control_layout.addWidget(self.status_label)
@@ -338,9 +335,6 @@ class MainWindow(QMainWindow):
         
         # 获取图像上的点并转换为原始图像坐标
         points = [(p.x(), p.y()) for p in self.image_display.points]
-        if len(points) < 2:
-            self.status_label.setText("状态: 需要选择2个点")
-            return
         
         # 计算世界坐标
         world_points = self.calculate_world_coordinates(points)
@@ -350,6 +344,8 @@ class MainWindow(QMainWindow):
             self.status_label.setText(f"状态: 计算完成\n点1: {world_points[0]}\n点2: {world_points[1]}")
         elif len(world_points) == 4:
             self.status_label.setText(f"状态: 计算完成\n点1: {world_points[0]}\n点2: {world_points[1]}\n点3: {world_points[2]}\n点4: {world_points[3]}")
+        elif len(world_points) == 1:
+            self.status_label.setText(f"状态: 计算完成\n点: {world_points[0]}")
 
         if self.image_display.mode == "fold":
             if world_points[0][0] < 0:
@@ -362,7 +358,7 @@ class MainWindow(QMainWindow):
             place_point = R.dot(world_points[1]) + T
             Thread(target=arm.pick_and_place, args=(pick_point, place_point)).start()
         elif self.image_display.mode == "dual_fold":
-            if world_points[0][0] < 0:
+            if world_points[0][0] < world_points[1][0]:
                 arm1 = self.panda_left
                 R1, T1 = get_R_T(inverse_transform(self.left_arm_pose))
                 arm2 = self.panda_right
@@ -379,7 +375,7 @@ class MainWindow(QMainWindow):
             Thread(target=arm1.pick_and_place, args=(pick_point1, place_point1, True, True)).start()
             Thread(target=arm2.pick_and_place, args=(pick_point2, place_point2, True, True)).start()
         elif self.image_display.mode == "flatten":
-            if world_points[0][0] < 0:
+            if world_points[0][0] < world_points[1][0]:
                 arm1 = self.panda_left
                 R1, T1 = get_R_T(inverse_transform(self.left_arm_pose))
                 arm2 = self.panda_right
@@ -393,6 +389,16 @@ class MainWindow(QMainWindow):
             pick_point2 = R2.dot(world_points[1]) + T2
             Thread(target=arm1.flatten, args=(pick_point1, True)).start()
             Thread(target=arm2.flatten, args=(pick_point2, True)).start()
+        elif self.image_display.mode == "random":
+            if world_points[0][0] < 0:
+                arm = self.panda_left
+                R, T = get_R_T(inverse_transform(self.left_arm_pose))
+            else:
+                arm = self.panda_right
+                R, T = get_R_T(inverse_transform(self.right_arm_pose))
+            pick_point = R.dot(world_points[0]) + T
+            Thread(target=arm.pick_and_drop, args=(pick_point, )).start()
+
     
     def check_data_ready(self):
         """检查所需数据是否已准备好"""
