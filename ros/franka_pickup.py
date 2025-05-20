@@ -9,6 +9,7 @@ import copy
 import tf
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 import threading
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 # 创建屏障，设置需要等待的线程数（这里是2）
 barrier = threading.Barrier(2)
@@ -34,6 +35,18 @@ def scale_plan_speed(plan, speed_scale=1.0):
     # 使用修改后的轨迹
     plan.joint_trajectory = new_trajectory
     return plan
+
+def position_euler_to_pose(x,y,z,roll, pitch, yaw):
+    pose = Pose()
+    pose.position.x = x
+    pose.position.y = y
+    pose.position.z = z
+    target_quat = quaternion_from_euler(roll, pitch, yaw)
+    pose.orientation.x = target_quat[0]
+    pose.orientation.y = target_quat[1]
+    pose.orientation.z = target_quat[2]
+    pose.orientation.w = target_quat[3]
+    return pose
 
 class Manipulator:
     HOME_POSITION = [p * math.pi / 180.0 for p in [0, -45, 0, -45, 0, 90, 45]]
@@ -122,17 +135,18 @@ class Manipulator:
             rospy.loginfo(
                 "%s | 规划失败，仅完成%.1f%%路径" % (self.arm_name, fraction * 100)
             )
-            if retry:
-                return -1
-            else:
-                dis = self.target_distance(target_pose)
-                if dis > 0.3:
-                    self.extend_ee()
-                else:
-                    self.retract_ee()
-                target_pose.orientation = self.current_pose.orientation
-                rc = self.move_straight(target_pose, speed_scale=speed_scale, retry=True)
-                return rc
+            # if retry:
+            #     return -1
+            # else:
+            #     dis = self.target_distance(target_pose)
+            #     if dis > 0.3:
+            #         self.extend_ee()
+            #     else:
+            #         self.retract_ee()
+            #     target_pose.orientation = self.current_pose.orientation
+            #     rc = self.move_straight(target_pose, speed_scale=speed_scale, retry=True)
+            #     return rc
+            return -1
         if speed_scale != 1.0:
             plan = scale_plan_speed(plan, speed_scale)
         self.arm_group.execute(plan, wait=True)
@@ -198,9 +212,9 @@ class Manipulator:
         pick_pose.position.x = pick_point[0]
         pick_pose.position.y = pick_point[1]
         if deep:
-            z_height = max(pick_point[2] - 0.04, 0.01) 
+            z_height = max(pick_point[2] - 0.08, 0.01) 
         else:
-            z_height = max(pick_point[2] - 0.02, 0.01)
+            z_height = max(pick_point[2] - 0.04, 0.01)
         rospy.loginfo("%s | 运动到抓取高度 %s" % (self.arm_name, z_height))
         pick_pose.position.z = z_height
         pick_pose.orientation = current_pose.orientation
@@ -244,6 +258,7 @@ class Manipulator:
         self.move_to_start()
         self.move_to_home()
 
+
     def flatten(self, pick_point, sync = False):
         self.open_gripper()
         self.move_to_extension()
@@ -260,7 +275,7 @@ class Manipulator:
         pick_pose = Pose()
         pick_pose.position.x = pick_point[0]
         pick_pose.position.y = pick_point[1]
-        z_height = max(pick_point[2] - 0.02, 0.01)
+        z_height = max(pick_point[2] - 0.08, 0.01)
         rospy.loginfo("%s | 运动到抓取高度 %s" % (self.arm_name, z_height))
         pick_pose.position.z = z_height
         pick_pose.orientation = current_pose.orientation
@@ -280,31 +295,41 @@ class Manipulator:
         if sync:
             barrier.wait()
         rospy.loginfo("%s | 运动到铺平起始位置" % self.arm_name)
-        flatten_height = 0.65
-        flatten_y = 0.55
-        flatten_x = 0.55
-        start_pose = Pose()
-        start_pose.position.x = flatten_x
-        if self.arm_name == 'panda_left':
-            start_pose.position.y = -flatten_y
-        else:
-            start_pose.position.y = flatten_y
-        start_pose.position.z = flatten_height
-        start_pose.orientation = extension_orientation
+        if self.arm_name == 'panda_right':
+            start_pose = position_euler_to_pose(x=0.6519028695369259
+                                               ,y=0.5312207761352308
+                                               ,z=0.7430003839937505
+                                               ,roll=0.08766311936934215
+                                               ,pitch=-1.3934647613163673
+                                               ,yaw=-2.526322703738326)
+        elif self.arm_name == 'panda_left':
+            start_pose = position_euler_to_pose(x=0.6519028695369259
+                                               ,y=-0.5312207761352308
+                                               ,z=0.7430003839937505
+                                               ,roll=0.08766311936934215
+                                               ,pitch=-1.3934647613163673
+                                               ,yaw=2.526322703738326)
+
         rc = self.move_straight(start_pose, 0.2)
         if rc < 0:
             return -1
         if sync:
             barrier.wait()
         rospy.loginfo("%s | 运动到铺平结束位置" % self.arm_name)
-        end_pose = Pose()
-        end_pose.position.x = flatten_x
-        if self.arm_name == 'panda_left':
-            end_pose.position.y = 0.5
-        else:
-            end_pose.position.y = -0.5
-        end_pose.position.z = 0.02
-        end_pose.orientation = current_pose.orientation
+        if self.arm_name == 'panda_right':
+            end_pose = position_euler_to_pose(x=0.649227020199773
+                                            ,y=-0.5450844632252786
+                                            ,z=0.033427382822730944
+                                            ,roll=-2.9752342497736266
+                                            ,pitch=-0.5692692488126697
+                                            ,yaw=-1.094126875813451)
+        elif self.arm_name == 'panda_left':
+            end_pose = position_euler_to_pose(x=0.649227020199773
+                                            ,y=0.5450844632252786
+                                            ,z=0.033427382822730944
+                                            ,roll=-2.9752342497736266
+                                            ,pitch=-0.5692692488126697
+                                            ,yaw=1.094126875813451)
         rc = self.move_straight(end_pose, 0.2)
         if rc < 0:
             return -1
@@ -335,7 +360,7 @@ class Manipulator:
         pick_pose = Pose()
         pick_pose.position.x = pick_point[0]
         pick_pose.position.y = pick_point[1]
-        z_height = max(pick_point[2] - 0.04, 0.01) 
+        z_height = max(pick_point[2] - 0.08, 0.01) 
         rospy.loginfo("%s | 运动到抓取高度 %s" % (self.arm_name, z_height))
         pick_pose.position.z = z_height
         pick_pose.orientation = current_pose.orientation
@@ -361,6 +386,7 @@ class Manipulator:
         rc = self.move_straight(drop_pose, 0.2)
         if rc < 0:
             return -1
+        rospy.sleep(2)
         rospy.loginfo("%s | 打开夹爪" % self.arm_name)
         self.open_gripper()
         rospy.sleep(2)
