@@ -337,14 +337,14 @@ class Manipulator:
         rospy.loginfo("%s | 运动到铺平结束位置" % self.arm_name)
         if self.arm_name == 'panda_right':
             end_pose = position_euler_to_pose(x=0.5908389366233705
-                                            ,y=-0.30047243605215895
+                                            ,y=-0.20047243605215895
                                             ,z=0.08329330047535127
                                             ,roll=-3.130197047279865
                                             ,pitch=-0.203768386711177
                                             ,yaw=-0.5516549050579803)
         elif self.arm_name == 'panda_left':
             end_pose = position_euler_to_pose(x=0.5908389366233705
-                                            ,y=0.30047243605215895
+                                            ,y=0.20047243605215895
                                             ,z=0.08329330047535127
                                             ,roll=-3.130197047279865
                                             ,pitch=-0.203768386711177
