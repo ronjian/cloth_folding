@@ -296,40 +296,59 @@ class Manipulator:
             barrier.wait()
         rospy.loginfo("%s | 运动到铺平起始位置" % self.arm_name)
         if self.arm_name == 'panda_right':
-            start_pose = position_euler_to_pose(x=0.6519028695369259
-                                               ,y=0.5312207761352308
-                                               ,z=0.7430003839937505
-                                               ,roll=0.08766311936934215
-                                               ,pitch=-1.3934647613163673
-                                               ,yaw=-2.526322703738326)
+            start_pose = position_euler_to_pose(x=0.6088363745155371
+                                               ,y=0.5664727788152062
+                                               ,z=0.6838833715005419
+                                               ,roll=-2.9011359150910314
+                                               ,pitch=-1.2380923126610726
+                                               ,yaw=0.5436518860902592)
         elif self.arm_name == 'panda_left':
-            start_pose = position_euler_to_pose(x=0.6519028695369259
-                                               ,y=-0.5312207761352308
-                                               ,z=0.7430003839937505
-                                               ,roll=0.08766311936934215
-                                               ,pitch=-1.3934647613163673
-                                               ,yaw=2.526322703738326)
-
+            start_pose = position_euler_to_pose(x=0.6088363745155371
+                                               ,y=-0.5664727788152062
+                                               ,z=0.6838833715005419
+                                               ,roll=-2.9011359150910314
+                                               ,pitch=-1.2380923126610726
+                                               ,yaw=-0.5436518860902592)
         rc = self.move_straight(start_pose, 0.2)
+        if rc < 0:
+            return -1
+        if sync:
+            barrier.wait()
+        rospy.loginfo("%s | 运动到铺平中间位置" % self.arm_name)
+        if self.arm_name == 'panda_right':
+            end_pose = position_euler_to_pose(x=0.5908389366233705
+                                            ,y=-0.
+                                            ,z=0.08329330047535127
+                                            ,roll=-3.130197047279865
+                                            ,pitch=-0.203768386711177
+                                            ,yaw=-0.5516549050579803)
+        elif self.arm_name == 'panda_left':
+            end_pose = position_euler_to_pose(x=0.5908389366233705
+                                            ,y=0.
+                                            ,z=0.08329330047535127
+                                            ,roll=-3.130197047279865
+                                            ,pitch=-0.203768386711177
+                                            ,yaw=0.5516549050579803)
+        rc = self.move_straight(end_pose, 0.2)
         if rc < 0:
             return -1
         if sync:
             barrier.wait()
         rospy.loginfo("%s | 运动到铺平结束位置" % self.arm_name)
         if self.arm_name == 'panda_right':
-            end_pose = position_euler_to_pose(x=0.649227020199773
-                                            ,y=-0.5450844632252786
-                                            ,z=0.033427382822730944
-                                            ,roll=-2.9752342497736266
-                                            ,pitch=-0.5692692488126697
-                                            ,yaw=-1.094126875813451)
+            end_pose = position_euler_to_pose(x=0.5908389366233705
+                                            ,y=-0.30047243605215895
+                                            ,z=0.08329330047535127
+                                            ,roll=-3.130197047279865
+                                            ,pitch=-0.203768386711177
+                                            ,yaw=-0.5516549050579803)
         elif self.arm_name == 'panda_left':
-            end_pose = position_euler_to_pose(x=0.649227020199773
-                                            ,y=0.5450844632252786
-                                            ,z=0.033427382822730944
-                                            ,roll=-2.9752342497736266
-                                            ,pitch=-0.5692692488126697
-                                            ,yaw=1.094126875813451)
+            end_pose = position_euler_to_pose(x=0.5908389366233705
+                                            ,y=0.30047243605215895
+                                            ,z=0.08329330047535127
+                                            ,roll=-3.130197047279865
+                                            ,pitch=-0.203768386711177
+                                            ,yaw=0.5516549050579803)
         rc = self.move_straight(end_pose, 0.2)
         if rc < 0:
             return -1
