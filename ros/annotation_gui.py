@@ -234,7 +234,7 @@ class MainWindow(QMainWindow):
         self.reset_btn.clicked.connect(self.reset)
         control_layout.addWidget(self.reset_btn)
         
-        self.random_btn = QPushButton("居中")
+        self.random_btn = QPushButton("打乱")
         self.random_btn.clicked.connect(lambda: self.image_display.set_mode('random'))
         control_layout.addWidget(self.random_btn)
 

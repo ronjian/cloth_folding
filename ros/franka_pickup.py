@@ -51,7 +51,6 @@ def position_euler_to_pose(x,y,z,roll, pitch, yaw):
 class Manipulator:
     HOME_POSITION = [p * math.pi / 180.0 for p in [0, -45, 0, -45, 0, 90, 45]]
     START_POSITION = [p * math.pi / 180.0 for p in [0, -45, 0, -135, 0, 90, 45]]
-    EXTENSION_POSITION = [p * math.pi / 180.0 for p in [0, -45, 0, -135, 0, 145, 45]]
     def __init__(self, arm_name):
         self.arm_group = MoveGroupCommander(name="panda_manipulator"
                                             , robot_description="/{}/robot_description".format(arm_name)
@@ -69,29 +68,34 @@ class Manipulator:
         self.arm_name = arm_name
         self.tf_listener = tf.TransformListener()
 
+    def tune_target_pose(self, target_pose, extend=True):
+        current_pos = target_pose.position
+        current_quat = target_pose.orientation
+        roll, pitch, yaw = euler_from_quaternion([current_quat.x, current_quat.y, current_quat.z, current_quat.w])
+        if extend:
+            pitch -= math.pi / 3
+        else:
+            pitch += math.pi / 3
+        xyzw = quaternion_from_euler(roll, pitch, yaw)
+        new_pose = Pose()
+        new_pose.position.x = current_pos.x
+        new_pose.position.y = current_pos.y
+        new_pose.position.z = current_pos.z
+        new_pose.orientation.x = xyzw[0]
+        new_pose.orientation.y = xyzw[1]
+        new_pose.orientation.z = xyzw[2]
+        new_pose.orientation.w = xyzw[3]
+        return new_pose
+
     def move_to_joints(self, joints):
         assert len(joints) == 7, "关节数不正确！"
         self.arm_group.set_joint_value_target(joints)
         self.arm_group.go(wait=True)
         return
 
-    def extend_ee(self):
-        current_joints = self.arm_group.get_current_joint_values()
-        current_joints[5] = 145 * math.pi / 180.0
-        self.move_to_joints(current_joints)
-
-    def retract_ee(self):
-        current_joints = self.arm_group.get_current_joint_values()
-        current_joints[5] = 60 * math.pi / 180.0
-        self.move_to_joints(current_joints)
-
     def move_to_start(self):
         self.move_to_joints(self.START_POSITION)
         rospy.loginfo("%s | 运动到起始位置完成！" % self.arm_name)
-
-    def move_to_extension(self):
-        self.move_to_joints(self.EXTENSION_POSITION)
-        rospy.loginfo("%s | 运动到扩展位置完成！" % self.arm_name)
 
     def move_to_home(self):
         self.move_to_joints(self.HOME_POSITION)
@@ -135,18 +139,16 @@ class Manipulator:
             rospy.loginfo(
                 "%s | 规划失败，仅完成%.1f%%路径" % (self.arm_name, fraction * 100)
             )
-            # if retry:
-            #     return -1
-            # else:
-            #     dis = self.target_distance(target_pose)
-            #     if dis > 0.3:
-            #         self.extend_ee()
-            #     else:
-            #         self.retract_ee()
-            #     target_pose.orientation = self.current_pose.orientation
-            #     rc = self.move_straight(target_pose, speed_scale=speed_scale, retry=True)
-            #     return rc
-            return -1
+            if retry:
+                return -1
+            else:
+                dis = self.target_distance(target_pose)
+                if dis > 0.3:
+                    target_pose = self.tune_target_pose(target_pose, extend=True)
+                else:
+                    target_pose = self.tune_target_pose(target_pose, extend=False)
+                rc = self.move_straight(target_pose, speed_scale=speed_scale, retry=True)
+                return rc
         if speed_scale != 1.0:
             plan = scale_plan_speed(plan, speed_scale)
         self.arm_group.execute(plan, wait=True)
@@ -176,25 +178,6 @@ class Manipulator:
         cur_joints = copy.copy(self.arm_group.get_current_joint_values())
         return cur_joints
 
-    def pickup(self):
-        self.move_to_home()
-        self.move_to_start()
-        # 获取当前末端姿态
-        start_pose = self.current_pose
-        # 定义目标点
-        target_pose = Pose()
-        target_pose.position.x = start_pose.position.x
-        target_pose.position.y = start_pose.position.y
-        target_pose.position.z = 0.01
-        target_pose.orientation = start_pose.orientation
-
-        self.move_straight(target_pose)
-        self.close_gripper()
-        self.move_straight(start_pose)
-        # self.move_to_start()
-        self.open_gripper()
-        self.move_to_home()
-    
     def pick_and_place(self, pick_point, place_point, sync = False, deep = False):
         picking_height = 0.3
         rospy.loginfo(f"{self.arm_name} | 捡起点：{pick_point}，放下点：{place_point}")
@@ -261,8 +244,7 @@ class Manipulator:
 
     def flatten(self, pick_point, sync = False):
         self.open_gripper()
-        self.move_to_extension()
-        extension_orientation = self.current_pose.orientation
+        self.move_to_start()
         picking_height = 0.5
         rospy.loginfo(f"{self.arm_name} | 捡起点：{pick_point}")
         rospy.loginfo("%s | 运动到起始位置" % self.arm_name)
@@ -416,10 +398,3 @@ class Manipulator:
         self.open_gripper()
         self.move_to_home()
         rospy.loginfo("%s | 复位完成！" % self.arm_name)
-
-if __name__ == "__main__":
-    rospy.init_node("franka_cartesian_move")
-    panda_left = Manipulator("panda_left")
-    panda_right = Manipulator("panda_right")
-    Thread(target=panda_right.pickup).start()
-    Thread(target=panda_left.pickup).start()
