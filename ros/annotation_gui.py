@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QColor
 from PyQt5.QtCore import Qt, QPoint, QTimer, QRect
 
-from franka_pickup import Manipulator
+from manipulator import Manipulator
 
 
 def inverse_transform(transform):
