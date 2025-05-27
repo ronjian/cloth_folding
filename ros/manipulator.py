@@ -4,12 +4,12 @@ import math
 from geometry_msgs.msg import Pose
 from moveit_commander import MoveGroupCommander
 from control_msgs.msg import GripperCommandActionGoal
-from threading import Thread
 import copy
 import tf
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 import threading
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
+from sensor_msgs.msg import JointState
 
 # 创建屏障，设置需要等待的线程数（这里是2）
 barrier = threading.Barrier(2)
@@ -67,6 +67,7 @@ class Manipulator:
         )
         self.arm_name = arm_name
         self.tf_listener = tf.TransformListener()
+        self.joint_states_pub = rospy.Publisher('{}/joint_states'.format(arm_name), JointState, queue_size=10)
 
     def tune_target_pose(self, target_pose, extend=True):
         current_pos = target_pose.position
@@ -129,8 +130,7 @@ class Manipulator:
 
     def move_straight(self, target_pose: Pose, speed_scale=1.0, retry = False):
         if retry: rospy.loginfo("%s | 直线运动重试中..." % self.arm_name)
-        current_pose = self.current_pose
-        waypoints = [current_pose, target_pose]
+        waypoints = [target_pose]
         (plan, fraction) = self.arm_group.compute_cartesian_path(
             waypoints, 0.01, avoid_collisions=True  # 路径点列表  # 步长（米）
         )
@@ -398,3 +398,18 @@ class Manipulator:
         self.open_gripper()
         self.move_to_home()
         rospy.loginfo("%s | 复位完成！" % self.arm_name)
+
+    def follow(self, target_pose:Pose):
+        waypoints = [target_pose]
+        (plan, fraction) = self.arm_group.compute_cartesian_path(
+            waypoints, 0.01, avoid_collisions=True  # 路径点列表  # 步长（米）
+        )
+        if fraction == 1.0:
+            joint_trajectory = plan.joint_trajectory
+            joint_state = JointState()
+            joint_state.header.stamp = rospy.Time.now()
+            joint_state.name = joint_trajectory.joint_names
+            joint_state.position = joint_trajectory.points[-1].positions
+            joint_state.velocity = []
+            joint_state.effort = []
+            self.joint_states_pub.publish(joint_state)

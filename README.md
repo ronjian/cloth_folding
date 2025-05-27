@@ -45,3 +45,9 @@ pcl_viewer -ax 1.0 tmp.pcd
 ```shell
 python ros/annotation_gui.py
 ```
+
+鼠标控制机械臂运动的示例
+```shell
+rosnode kill /panda_right/joint_state_publisher
+python ros/mouse.py
+```
