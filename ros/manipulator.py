@@ -399,17 +399,20 @@ class Manipulator:
         self.move_to_home()
         rospy.loginfo("%s | 复位完成！" % self.arm_name)
 
-    def follow(self, target_pose:Pose):
-        waypoints = [target_pose]
-        (plan, fraction) = self.arm_group.compute_cartesian_path(
-            waypoints, 0.01, avoid_collisions=True  # 路径点列表  # 步长（米）
-        )
-        if fraction == 1.0:
-            joint_trajectory = plan.joint_trajectory
-            joint_state = JointState()
-            joint_state.header.stamp = rospy.Time.now()
-            joint_state.name = joint_trajectory.joint_names
-            joint_state.position = joint_trajectory.points[-1].positions
-            joint_state.velocity = []
-            joint_state.effort = []
-            self.joint_states_pub.publish(joint_state)
+    def follow(self, target_pose:Pose, wait=False):
+        if wait:
+            self.move_straight(target_pose, retry=True)
+        else:
+            waypoints = [target_pose]
+            (plan, fraction) = self.arm_group.compute_cartesian_path(
+                waypoints, 0.01, avoid_collisions=True  # 路径点列表  # 步长（米）
+            )
+            if fraction == 1.0:
+                joint_trajectory = plan.joint_trajectory
+                joint_state = JointState()
+                joint_state.header.stamp = rospy.Time.now()
+                joint_state.name = joint_trajectory.joint_names
+                joint_state.position = joint_trajectory.points[-1].positions
+                joint_state.velocity = []
+                joint_state.effort = []
+                self.joint_states_pub.publish(joint_state)
