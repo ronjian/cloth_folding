@@ -22,9 +22,9 @@ ROS_NAMESPACE=panda_right roslaunch panda_moveit_config demo.launch rviz_tutoria
 在弹出的rviz窗口中点击```Add```按钮，选择```MotionPlanning```
 
 启动isaac sim仿真程序
-```
+```shell
 cd isaacsim
-./python.sh cloth_folding/isaac_sim/franka_cloth_folding.py
+./python.sh cloth_folding/isaac_sim/franka_cloth_folding.py --mode=aloha
 ```
 或者在vscode中debug启动代码，前提是用的是isaacsim自带的python程序
 (```isaacsim/kit/python/bin/python3```)和 ```PYTHONPATH```等环境变量配置正确
@@ -50,4 +50,11 @@ python ros/annotation_gui.py
 ```shell
 rosnode kill /panda_right/joint_state_publisher
 python ros/mouse.py
+```
+
+VR控制机械臂运动的示例, 需要重新启动仿真程序
+```shell
+# 启动isaac sim仿真程序
+cd isaacsim
+./python.sh cloth_folding/isaac_sim/franka_cloth_folding.py --mode=mobile_aloha
 ```

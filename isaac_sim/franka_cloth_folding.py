@@ -36,6 +36,8 @@ from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import JointState
 from control_msgs.msg import GripperCommandActionGoal
 
+import argparse
+
 
 def query_pose(prim_path, frame_id):
     xform_prim = XFormPrim(prim_path)
@@ -140,13 +142,17 @@ class Arm:
         self.world_pose_pub.publish(tf_msg)
 
 class Camera:
-    def __init__(self):
+    def __init__(self, mode):
         CAMERA_STAGE_PATH = "/Camera"
         # Creating a Camera prim
         camera_prim = UsdGeom.Camera(omni.usd.get_context().get_stage().DefinePrim(CAMERA_STAGE_PATH, "Camera"))
         self.xform_api = UsdGeom.XformCommonAPI(camera_prim)
-        self.xform_api.SetTranslate(Gf.Vec3d(0, 0, 1.8))
-        self.xform_api.SetRotate((0, 0, 0), UsdGeom.XformCommonAPI.RotationOrderXYZ)
+        if mode == 'aloha':
+            self.xform_api.SetTranslate(Gf.Vec3d(0, 0, 1.8))
+            self.xform_api.SetRotate((0, 0, 0), UsdGeom.XformCommonAPI.RotationOrderXYZ)
+        elif mode == 'mobile_aloha':
+            self.xform_api.SetTranslate(Gf.Vec3d(0, -0.7, 1.8))
+            self.xform_api.SetRotate((15, 0, 0), UsdGeom.XformCommonAPI.RotationOrderXYZ)
         camera_prim.GetHorizontalApertureAttr().Set(21)
         camera_prim.GetVerticalApertureAttr().Set(16)
         camera_prim.GetProjectionAttr().Set("perspective")
@@ -220,15 +226,18 @@ class Camera:
         self.world_pose_pub.publish(tf_msg)
 
 class SimEnv:
-    def __init__(self):
+    def __init__(self, mode):
         self.simulation_context = SimulationContext(stage_units_in_meters=1.0)
         simulation_app.update()
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        stage_path = os.path.join(current_dir, "franka_scene/franka_scene_3.usd")
+        if mode == 'aloha':
+            stage_path = os.path.join(current_dir, "franka_scene/aloha.usd")
+        elif mode == 'mobile_aloha':
+            stage_path = os.path.join(current_dir, "franka_scene/mobile_aloha.usd")
 
         omni.usd.get_context().open_stage(stage_path)
 
-        self.camera = Camera()
+        self.camera = Camera(mode)
 
         # Need to initialize physics getting any articulation..etc
         self.simulation_context.initialize_physics()
@@ -259,10 +268,15 @@ class SimEnv:
         self.simulation_context.stop()
         simulation_app.close()
 
-
-if __name__ == "__main__":
+def main(args):
     rospy.init_node(
         "franka_cloth_folding", anonymous=True, disable_signals=True, log_level=rospy.ERROR
     )
-    sim_env = SimEnv()
+    sim_env = SimEnv(args.mode)
     sim_env.run_simulation()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--mode', help='scene mode', default='aloha')
+    args = parser.parse_args()
+    main(args)
