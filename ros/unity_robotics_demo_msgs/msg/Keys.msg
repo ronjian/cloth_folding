@@ -1,0 +1,14 @@
+float32 left_trigger
+float32 right_trigger
+bool left_x
+bool left_y
+bool right_a
+bool right_b
+bool left_menu
+bool right_meta
+bool left_gripper
+bool right_gripper
+float32 left_thumbstick_x
+float32 left_thumbstick_y
+float32 right_thumbstick_x
+float32 right_thumbstick_y

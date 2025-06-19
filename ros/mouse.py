@@ -11,15 +11,7 @@ rospy.loginfo(f"当前鼠标位置: X={init_x}, Y={init_y}")
 def main():
     panda_right = Manipulator("panda_right")
     panda_right.move_to_start()
-    # init_pose = panda_right.current_pose
-    init_pose = Pose()
-    init_pose.position.x = 0.3068996400631961
-    init_pose.position.y = 1.5825692895146504e-05
-    init_pose.position.z = 0.4868641264189588
-    init_pose.orientation.x = -0.9999999975158107
-    init_pose.orientation.y = -2.211139319355152e-05
-    init_pose.orientation.z = 4.807790928831443e-05
-    init_pose.orientation.w = -4.6561563415960625e-05
+    init_pose = panda_right.current_pose
     while True:
         current_x, current_y = pyautogui.position()
         X = current_x - init_x
@@ -33,7 +25,7 @@ def main():
         rospy.loginfo(f"目标位置: X={target_pose.position.x}, Y={target_pose.position.y}, Z={target_pose.position.z}")
         target_pose.orientation = init_pose.orientation
         tic = time.time() 
-        panda_right.follow(target_pose)
+        panda_right.follow(target_pose, wait=True)
         rospy.loginfo(f"移动时间: {time.time() - tic:.2f}秒")
 
 if __name__ == "__main__":

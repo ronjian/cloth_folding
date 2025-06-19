@@ -51,6 +51,9 @@ def position_euler_to_pose(x,y,z,roll, pitch, yaw):
 class Manipulator:
     HOME_POSITION = [p * math.pi / 180.0 for p in [0, -45, 0, -45, 0, 90, 45]]
     START_POSITION = [p * math.pi / 180.0 for p in [0, -45, 0, -135, 0, 90, 45]]
+    VR_POSITION = [p * math.pi / 180.0 for p in [0, -45, 0, -135, 0, 180, 45]]
+    JOINTS_NAME = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"]
+
     def __init__(self, arm_name):
         self.arm_group = MoveGroupCommander(name="panda_manipulator"
                                             , robot_description="/{}/robot_description".format(arm_name)
@@ -102,7 +105,11 @@ class Manipulator:
         self.move_to_joints(self.HOME_POSITION)
         rospy.loginfo("%s | 运动到HOME位置完成！" % self.arm_name)
 
-    def move_gripper(self, position):
+    def move_to_vr(self):
+        self.move_to_joints(self.VR_POSITION)
+        rospy.loginfo("%s | 运动到vr位置完成！" % self.arm_name)
+
+    def move_gripper(self, position, wait=True):
         self.gripper_group.set_joint_value_target(
             [position, position]
         )  # Panda夹爪有两个对称关节
@@ -112,15 +119,16 @@ class Manipulator:
         goal_msg.goal.command.position = position  # 开口大小（米，0.0~0.04）
         self.gripper_pub.publish(goal_msg)
 
-        # 执行运动
-        self.gripper_group.go(wait=True)
+        if wait:
+            # ROS中执行运动
+            self.gripper_group.go(wait=True)
 
-    def open_gripper(self):
-        self.move_gripper(0.04)
+    def open_gripper(self, wait=True):
+        self.move_gripper(0.04, wait=wait)
         rospy.loginfo("%s | 夹爪打开完成！" % self.arm_name)
 
-    def close_gripper(self):
-        self.move_gripper(0.0)
+    def close_gripper(self, wait=True):
+        self.move_gripper(0.0, wait=wait)
         rospy.loginfo("%s | 夹爪闭合完成！" % self.arm_name)
 
     def target_distance(self, target_pose: Pose):
@@ -398,6 +406,11 @@ class Manipulator:
         self.open_gripper()
         self.move_to_home()
         rospy.loginfo("%s | 复位完成！" % self.arm_name)
+
+    def to_vr(self):
+        self.open_gripper()
+        self.move_to_vr()
+        rospy.loginfo("%s | move to vr完成！" % self.arm_name)
 
     def follow(self, target_pose:Pose, wait=False):
         if wait:

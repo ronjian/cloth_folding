@@ -1,0 +1,4 @@
+PosRot left_controller
+PosRot right_controller
+PosRot main_camera
+Keys keys

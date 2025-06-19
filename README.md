@@ -48,13 +48,19 @@ python ros/annotation_gui.py
 
 鼠标控制机械臂运动的示例
 ```shell
-rosnode kill /panda_right/joint_state_publisher
 python ros/mouse.py
 ```
 
-VR控制机械臂运动的示例, 需要重新启动仿真程序
+VR控制机械臂运动的示例, 需要启动mobile_aloha仿真程序
 ```shell
 # 启动isaac sim仿真程序
 cd isaacsim
 ./python.sh cloth_folding/isaac_sim/franka_cloth_folding.py --mode=mobile_aloha
+# 将msg拷贝到catkin workspace中
+# 参考： https://github.com/Unity-Technologies/Unity-Robotics-Hub/blob/main/tutorials/ros_unity_integration/publisher.md
+cp -r cloth_folding/ros/unity_robotics_demo_msgs ~/ws_moveit/src/
+source ~/ws_moveit/devel/setup.bash
+roslaunch ros_tcp_endpoint endpoint.launch
+# 启动VR控制程序
+python ros/vr.py
 ```
