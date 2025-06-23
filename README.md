@@ -59,6 +59,8 @@ cd isaacsim
 # 将msg拷贝到catkin workspace中
 # 参考： https://github.com/Unity-Technologies/Unity-Robotics-Hub/blob/main/tutorials/ros_unity_integration/publisher.md
 cp -r cloth_folding/ros/unity_robotics_demo_msgs ~/ws_moveit/src/
+cd ~/ws_moveit
+catkin build
 source ~/ws_moveit/devel/setup.bash
 roslaunch ros_tcp_endpoint endpoint.launch
 # 启动VR控制程序

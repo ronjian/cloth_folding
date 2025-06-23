@@ -6,6 +6,7 @@ from geometry_msgs.msg import Pose
 import numpy as np
 import tf.transformations as tf
 import time
+import math
 
 
 class DeltaData:
@@ -14,7 +15,7 @@ class DeltaData:
         self.y = 0.0
         self.z = 0.0
         self.ready = False
-        self.transform = None
+        self.euler = None
     
     def __str__(self):
         return f"Delta Position: ({self.x}, {self.y}, {self.z}), Ready: {self.ready}"
@@ -47,6 +48,9 @@ class ControllerData:
         self.rot_y = 0.0
         self.rot_z = 0.0
         self.rot_w = 0.0
+        self.euler_x = 0.0
+        self.euler_y = 0.0
+        self.euler_z = 0.0
 
     def __str__(self):
         return (
@@ -94,20 +98,6 @@ def unity_to_ros_position(unity_pos):
     ros_z = unity_pos[1]  # Unity Y -> ROS Z
     return (ros_x, ros_y, ros_z)
 
-def unity_to_ros_rotation(unity_quat):
-    """
-    将Unity四元数旋转转换为ROS四元数
-    参数:
-        unity_quat: Unity中的四元数 (x, y, z, w)
-    返回:
-        ROS中的四元数 (x, y, z, w)
-    """
-    ros_x = -unity_quat[2]  # Unity Z -> ROS X (取反)
-    ros_y = unity_quat[0]   # Unity X -> ROS Y
-    ros_z = -unity_quat[1]  # Unity Y -> ROS Z (取反)
-    ros_w = unity_quat[3]   # Unity W -> ROS W
-    return (ros_x, ros_y, ros_z, ros_w)
-
 class ROSSubscriber:
     def __init__(self):
         self.vr_data = XROriginData()
@@ -151,7 +141,7 @@ class ROSSubscriber:
         self.vr_data.keys.right_thumbstick_x = keys.right_thumbstick_x
         self.vr_data.keys.right_thumbstick_y = keys.right_thumbstick_y
 
-    def _update_controller_data(self, target, source):
+    def _update_controller_data(self, target: ControllerData, source):
         target.pos_x = source.pos_x
         target.pos_y = source.pos_y
         target.pos_z = source.pos_z
@@ -159,6 +149,9 @@ class ROSSubscriber:
         target.rot_y = source.rot_y
         target.rot_z = source.rot_z
         target.rot_w = source.rot_w
+        target.euler_x = source.euler_x / 180.0 * math.pi
+        target.euler_y = source.euler_y / 180.0 * math.pi
+        target.euler_z = source.euler_z / 180.0 * math.pi
 
     def set_delta(self, delta: DeltaData, arm: Manipulator, vr_controller: ControllerData):
         arm.to_vr()
@@ -172,14 +165,10 @@ class ROSSubscriber:
         delta.y = current_pose.position.y - ros_xyz[1]
         delta.z = current_pose.position.z - ros_xyz[2]
 
-        ideal_xyzw = tf.quaternion_from_euler(0.0, 0.0, 0.0)
-        ideal_rot = tf.quaternion_matrix(ideal_xyzw)
-        current_rot = tf.quaternion_matrix([current_pose.orientation.x, 
-                                            current_pose.orientation.y, 
-                                            current_pose.orientation.z, 
-                                            current_pose.orientation.w])
-        delta.transform = np.dot(current_rot, tf.inverse_matrix(ideal_rot))
-
+        delta.euler = tf.euler_from_quaternion([current_pose.orientation.x, 
+                                                current_pose.orientation.y, 
+                                                current_pose.orientation.z, 
+                                                current_pose.orientation.w], 'szxy')
         delta.ready = True
 
     def control(self):
@@ -211,40 +200,29 @@ class ROSSubscriber:
             vr_controller.pos_y,
             vr_controller.pos_z)
         )
-        ros_xyzw = unity_to_ros_rotation(
-            (vr_controller.rot_x,
-            vr_controller.rot_y,
-            vr_controller.rot_z,
-            vr_controller.rot_w)
-        )
-
         target_pose = Pose()
         target_pose.position.x = ros_xyz[0] + delta.x
         target_pose.position.y = ros_xyz[1] + delta.y
         target_pose.position.z = ros_xyz[2] + delta.z
 
-        ros_rot_transformed = np.dot(delta.transform, tf.quaternion_matrix(ros_xyzw))
-        q_transformed = tf.quaternion_from_matrix(ros_rot_transformed)
-        rpy = tf.euler_from_quaternion(q_transformed)
-        q_transformed = tf.quaternion_from_euler(rpy[2], rpy[0], rpy[1])
-        target_pose.orientation.x = q_transformed[0]
-        target_pose.orientation.y = q_transformed[1]
-        target_pose.orientation.z = q_transformed[2]
-        target_pose.orientation.w = q_transformed[3]
+        euler = [vr_controller.euler_x, vr_controller.euler_y, vr_controller.euler_z]
+        quat = tf.quaternion_from_euler(-euler[2] + delta.euler[0], euler[1] + delta.euler[1], euler[0] + delta.euler[2], 'szxy')
+        target_pose.orientation.x = quat[0]
+        target_pose.orientation.y = quat[1]
+        target_pose.orientation.z = quat[2]
+        target_pose.orientation.w = quat[3]
         return target_pose
 
     def follow_left(self):
         while True:
             if self.left_delta.ready:
                 left_target_pose = self.cal_target_pose(self.left_delta, self.vr_data.left_controller)
-                print(f"Left Target Pose: {left_target_pose}")
                 self.panda_left.follow(left_target_pose, True)
     
     def follow_right(self):
         while True:
             if self.right_delta.ready:
                 right_target_pose = self.cal_target_pose(self.right_delta, self.vr_data.right_controller)
-                print(f"Right Target Pose: {right_target_pose}")
                 self.panda_right.follow(right_target_pose, True)
     
     def follow_vr_gripper(self):
