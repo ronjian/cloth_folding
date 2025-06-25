@@ -71,7 +71,7 @@ class Manipulator:
         )
         self.arm_name = arm_name
         self.tf_listener = tf.TransformListener()
-        self.joint_states_pub = rospy.Publisher('{}/joint_states'.format(arm_name), JointState, queue_size=10)
+        self.joint_states_pub = rospy.Publisher('/{}/move_group/fake_controller_joint_states'.format(arm_name), JointState, queue_size=10)
 
     def tune_target_pose(self, target_pose, extend=True):
         current_pos = target_pose.position
@@ -430,3 +430,5 @@ class Manipulator:
                 joint_state.velocity = []
                 joint_state.effort = []
                 self.joint_states_pub.publish(joint_state)
+            else:
+                rospy.loginfo("轨迹计算失败")

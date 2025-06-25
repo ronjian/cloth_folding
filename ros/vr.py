@@ -216,13 +216,13 @@ class ROSSubscriber:
         while True:
             if self.left_delta.ready:
                 left_target_pose = self.cal_target_pose(self.left_delta, self.vr_data.left_controller)
-                self.panda_left.follow(left_target_pose, True)
+                self.panda_left.follow(left_target_pose, False)
     
     def follow_right(self):
         while True:
             if self.right_delta.ready:
                 right_target_pose = self.cal_target_pose(self.right_delta, self.vr_data.right_controller)
-                self.panda_right.follow(right_target_pose, True)
+                self.panda_right.follow(right_target_pose, False)
     
     def follow_vr_gripper(self):
         left_close = False

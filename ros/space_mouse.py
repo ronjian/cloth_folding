@@ -63,7 +63,7 @@ def main():
         # target_pose.position = current_pose.position
 
         tic = time.time() 
-        arm.follow(target_pose, wait=True)
+        arm.follow(target_pose, wait=False)
         rospy.loginfo(f"移动时间: {time.time() - tic:.2f}秒")
 
 if __name__ == "__main__":

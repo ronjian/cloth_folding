@@ -25,7 +25,7 @@ def main():
         rospy.loginfo(f"目标位置: X={target_pose.position.x}, Y={target_pose.position.y}, Z={target_pose.position.z}")
         target_pose.orientation = init_pose.orientation
         tic = time.time() 
-        panda_right.follow(target_pose, wait=True)
+        panda_right.follow(target_pose, wait=False)
         rospy.loginfo(f"移动时间: {time.time() - tic:.2f}秒")
 
 if __name__ == "__main__":
