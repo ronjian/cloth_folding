@@ -10,11 +10,12 @@ from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 import threading
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from sensor_msgs.msg import JointState
+from moveit_msgs.msg import RobotTrajectory
 
 # 创建屏障，设置需要等待的线程数（这里是2）
 barrier = threading.Barrier(2)
 
-def scale_plan_speed(plan, speed_scale=1.0):
+def scale_plan_speed(plan: RobotTrajectory, speed_scale=1.0):
     # 修改轨迹时间参数
     new_trajectory = JointTrajectory()
     new_trajectory.joint_names = plan.joint_trajectory.joint_names
@@ -22,7 +23,7 @@ def scale_plan_speed(plan, speed_scale=1.0):
     time_scaling = 1.0 / speed_scale
 
     # 重新计算各点时间
-    for i, point in enumerate(plan.joint_trajectory.points):
+    for point in enumerate(plan.joint_trajectory.points):
         new_point = JointTrajectoryPoint()
         new_point.positions = point.positions
         new_point.velocities = point.velocities
