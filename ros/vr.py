@@ -3,7 +3,6 @@ from unity_robotics_demo_msgs.msg import XrOrigin
 from manipulator import Manipulator
 from threading import Thread
 from geometry_msgs.msg import Pose
-import numpy as np
 import tf.transformations as tf
 import time
 import math
