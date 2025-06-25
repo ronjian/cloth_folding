@@ -23,7 +23,7 @@ def scale_plan_speed(plan: RobotTrajectory, speed_scale=1.0):
     time_scaling = 1.0 / speed_scale
 
     # 重新计算各点时间
-    for point in enumerate(plan.joint_trajectory.points):
+    for point in plan.joint_trajectory.points:
         new_point = JointTrajectoryPoint()
         new_point.positions = point.positions
         new_point.velocities = point.velocities
