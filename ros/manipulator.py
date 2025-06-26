@@ -422,6 +422,7 @@ class Manipulator:
                 waypoints, 0.01, avoid_collisions=True  # 路径点列表  # 步长（米）
             )
             if fraction == 1.0:
+                rospy.loginfo("%s | follow！" % self.arm_name)
                 joint_trajectory = plan.joint_trajectory
                 joint_state = JointState()
                 joint_state.header.stamp = rospy.Time.now()
@@ -431,4 +432,4 @@ class Manipulator:
                 joint_state.effort = []
                 self.joint_states_pub.publish(joint_state)
             else:
-                rospy.loginfo("轨迹计算失败")
+                rospy.loginfo("%s | 轨迹计算失败" % self.arm_name)

@@ -179,9 +179,11 @@ class ROSSubscriber:
                 self.set_delta(self.right_delta, self.panda_right, self.vr_data.right_controller)
             
             if self.vr_data.keys.left_y:
+                rospy.loginfo("重置左臂")
                 self.left_delta = DeltaData()
 
             if self.vr_data.keys.right_b:
+                rospy.loginfo("重置右臂")
                 self.right_delta = DeltaData()
 
     def move_arm_to_vr_position(self):
