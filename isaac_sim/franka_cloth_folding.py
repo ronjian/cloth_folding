@@ -151,7 +151,7 @@ class Camera:
             self.xform_api.SetTranslate(Gf.Vec3d(0, 0, 1.8))
             self.xform_api.SetRotate((0, 0, 0), UsdGeom.XformCommonAPI.RotationOrderXYZ)
         elif mode == 'mobile_aloha':
-            self.xform_api.SetTranslate(Gf.Vec3d(0, -0.7, 1.8))
+            self.xform_api.SetTranslate(Gf.Vec3d(0, -0.6, 1.8))
             self.xform_api.SetRotate((15, 0, 0), UsdGeom.XformCommonAPI.RotationOrderXYZ)
         camera_prim.GetHorizontalApertureAttr().Set(21)
         camera_prim.GetVerticalApertureAttr().Set(16)
