@@ -1,3 +1,5 @@
+# 基于Isaac sim + ROS1 + MOVEIT + Unity VR 的机械臂叠衣服环境
+
 基于isaac sim仿真环境构建机器人叠衣服算法
 
 安装isaac sim 4.5，
@@ -66,3 +68,30 @@ roslaunch ros_tcp_endpoint endpoint.launch
 # 启动VR控制程序
 python ros/vr.py
 ```
+VR设备端的代码在： https://github.com/ronjian/cloth_folding_teleoperation
+
+# 基于Isaac Lab + Vuer的遥操作方案
+
+安装unitree_sim_isaaclab， 参考 https://github.com/unitreerobotics/unitree_sim_isaaclab/tree/1a5d52267577c3223eee2e8d514ff4e9a71e7946?tab=readme-ov-file#22-installation-on-ubuntu-2004
+
+启动：
+```shell
+conda activate unitree_sim_env
+python sim_main.py --device cpu  --enable_cameras  --task  Isaac-PickPlace-Cylinder-G129-Dex1-Joint    --enable_gripper_dds --robot_type g129
+```
+
+安装avp_teleoperate， 参考newVuer分支的： https://github.com/unitreerobotics/avp_teleoperate/tree/375cdc27605de377c698e2b89cad0e5885724ca6?tab=readme-ov-file#1--prerequisites
+其中创建conda环境的时候，要指定为python=3.10
+
+启动：
+```shell
+conda activate tv
+python teleop_hand_and_arm.py --xr-mode=controller --ee=gripper --sim
+```
+
+将quest3与pc机用usb3.0线连接，启动adb的反向端口，参考 https://github.com/unitreerobotics/avp_teleoperate/issues/32#issuecomment-2658084837
+```shell
+sudo ./adb -s 2G0YC1ZF9J0D9D reverse tcp:8012 tcp:8012
+```
+
+进入quest3的浏览器，输入https://localhost:8012/?ws=wss://localhost:8012, 进入VR遥操作
