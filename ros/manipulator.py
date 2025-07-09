@@ -183,6 +183,7 @@ class Manipulator:
         cur_pose.orientation.w = xyzw[3]
         return cur_pose
     
+    @property
     def current_joints(self):
         cur_joints = copy.copy(self.arm_group.get_current_joint_values())
         return cur_joints
@@ -433,3 +434,15 @@ class Manipulator:
                 self.joint_states_pub.publish(joint_state)
             else:
                 rospy.loginfo("%s | 轨迹计算失败" % self.arm_name)
+    
+    def ik(self, target_pose: Pose, attempts=10):
+        self.arm_group.set_pose_target(target_pose)
+        self.arm_group.set_num_planning_attempts(attempts)
+        plan = self.arm_group.plan()[1]
+        if not plan.joint_trajectory.points:
+            rospy.logwarn("Failed to find IK solution for given pose")
+            return None
+        
+        joint_positions = plan.joint_trajectory.points[-1].positions
+        return [j for j in joint_positions]
+        

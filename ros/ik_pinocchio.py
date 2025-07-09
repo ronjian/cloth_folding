@@ -1,0 +1,64 @@
+import numpy as np
+import pinocchio as pin
+from typing import Dict, List
+import os
+
+class pin_kinematics:
+    def __init__(self):
+        # convert xacro to urdf:
+        # cd /opt/ros/noetic/share/franka_description/robots/panda
+        # xacro panda.urdf.xacro hand:=true gazebo:=true > /home/jiangrong/isaacsim/cloth_folding/ros/assets/franka_panda/panda.urdf
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        urdf_path = os.path.join(current_dir, "assets/franka_panda/panda.urdf")
+        self.pin_model: pin.Model = pin.buildModelFromUrdf(urdf_path)
+        self.pin_data: pin.Data = self.pin_model.createData()
+        self.frame_id_mapping: Dict[str, int] = {}
+        for i, frame in enumerate(self.pin_model.frames):
+            self.frame_id_mapping[frame.name] = i
+        ee_frame_name = "panda_hand_tcp"
+        self.ee_frame_id = self.frame_id_mapping[ee_frame_name]
+    
+    def compute_ee_pose(self, qpos: List) -> pin.SE3:
+        qpos = np.array(qpos)
+        if qpos.shape[0] == 7:
+            qpos = np.concatenate([qpos, np.zeros(2)])
+        pin.forwardKinematics(self.pin_model, self.pin_data, qpos)
+        ee_pose: pin.SE3 = pin.updateFramePlacement(
+            self.pin_model, self.pin_data, self.ee_frame_id
+        )
+        return ee_pose
+    
+
+    def compute_ik(self, ee_pose: pin.SE3, init_qpos: List):
+        oMdes = ee_pose
+        qpos = np.array(init_qpos)
+
+        if qpos.shape[0] == 7:
+            qpos = np.concatenate([qpos, np.zeros(2)])
+
+        for k in range(1000):
+            pin.forwardKinematics(self.pin_model, self.pin_data, qpos)
+            ee_pose = pin.updateFramePlacement(
+                self.pin_model, self.pin_data, self.ee_frame_id
+            )
+            J = pin.computeFrameJacobian(
+                self.pin_model, self.pin_data, qpos, self.ee_frame_id
+            )
+            iMd = ee_pose.actInv(oMdes)
+            err = pin.log(iMd).vector
+            # print(k, np.linalg.norm(err))
+            if np.linalg.norm(err) < 1e-3:
+                break
+
+            v = J.T.dot(np.linalg.solve(J.dot(J.T) + 1e-5, err))
+            qpos = pin.integrate(self.pin_model, qpos, v * 0.05)
+        return list(qpos)
+
+if __name__ == "__main__":
+    kin = pin_kinematics()
+    init_q = [-0.00018403243177298324, -0.7853874869460222, -0.0001951762413934528, -2.3560972799573334, 0.00038120054520713475, 1.5705772726795735, 0.7858247790430386]
+    ee_pose = kin.compute_ee_pose(init_q)
+    print(ee_pose)
+    init_q[0] = -1
+    solved_q = kin.compute_ik(ee_pose, init_q)
+    print(solved_q)
