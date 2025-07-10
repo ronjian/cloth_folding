@@ -113,8 +113,8 @@ class ROSSubscriber:
 
         Thread(target=self.follow_vr_gripper, daemon=True).start()
 
-        Thread(target=self.follow_left, daemon=True).start()
-        Thread(target=self.follow_right, daemon=True).start()
+        Thread(target=self.follow_left, args=(False, ), daemon=True).start()
+        Thread(target=self.follow_right, args=(False, ), daemon=True).start()
 
         while not rospy.is_shutdown():
             time.sleep(0.1)
@@ -214,17 +214,23 @@ class ROSSubscriber:
         target_pose.orientation.w = quat[3]
         return target_pose
 
-    def follow_left(self):
+    def follow_left(self, use_pinocchio=False):
         while True:
             if self.left_delta.ready:
                 left_target_pose = self.cal_target_pose(self.left_delta, self.vr_data.left_controller)
-                self.panda_left.follow(left_target_pose, False)
+                if use_pinocchio:
+                    self.panda_left.follow_by_pinocchio(left_target_pose)
+                else:
+                    self.panda_left.follow(left_target_pose, False)
     
-    def follow_right(self):
+    def follow_right(self, use_pinocchio=False):
         while True:
             if self.right_delta.ready:
                 right_target_pose = self.cal_target_pose(self.right_delta, self.vr_data.right_controller)
-                self.panda_right.follow(right_target_pose, False)
+                if use_pinocchio:
+                    self.panda_right.follow_by_pinocchio(right_target_pose)
+                else:
+                    self.panda_right.follow(right_target_pose, False)
     
     def follow_vr_gripper(self):
         left_close = False

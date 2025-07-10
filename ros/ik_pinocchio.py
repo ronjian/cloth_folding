@@ -3,7 +3,7 @@ import pinocchio as pin
 from typing import Dict, List
 import os
 
-class pin_kinematics:
+class PinKinematics:
     def __init__(self):
         # convert xacro to urdf:
         # cd /opt/ros/noetic/share/franka_description/robots/panda
@@ -36,7 +36,7 @@ class pin_kinematics:
         if qpos.shape[0] == 7:
             qpos = np.concatenate([qpos, np.zeros(2)])
 
-        for k in range(1000):
+        for k in range(200):
             pin.forwardKinematics(self.pin_model, self.pin_data, qpos)
             ee_pose = pin.updateFramePlacement(
                 self.pin_model, self.pin_data, self.ee_frame_id
@@ -55,7 +55,7 @@ class pin_kinematics:
         return list(qpos)
 
 if __name__ == "__main__":
-    kin = pin_kinematics()
+    kin = PinKinematics()
     init_q = [-0.00018403243177298324, -0.7853874869460222, -0.0001951762413934528, -2.3560972799573334, 0.00038120054520713475, 1.5705772726795735, 0.7858247790430386]
     ee_pose = kin.compute_ee_pose(init_q)
     print(ee_pose)

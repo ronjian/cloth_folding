@@ -11,6 +11,9 @@ import threading
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from sensor_msgs.msg import JointState
 from moveit_msgs.msg import RobotTrajectory
+from ik_pinocchio import PinKinematics
+import pinocchio as pin
+import numpy as np
 
 # 创建屏障，设置需要等待的线程数（这里是2）
 barrier = threading.Barrier(2)
@@ -49,6 +52,23 @@ def position_euler_to_pose(x,y,z,roll, pitch, yaw):
     pose.orientation.w = target_quat[3]
     return pose
 
+def pose_msg_to_se3(pose_msg):
+    """
+    将 geometry_msgs.msg.Pose 转换为 pinocchio.SE3
+    
+    参数:
+        pose_msg (geometry_msgs.msg.Pose): ROS Pose 消息
+        
+    返回:
+        pinocchio.SE3: 对应的 SE3 变换
+    """
+    position = np.array([pose_msg.position.x, 
+                         pose_msg.position.y, 
+                         pose_msg.position.z])
+    quat = pin.Quaternion(w = pose_msg.orientation.w, x = pose_msg.orientation.x, y = pose_msg.orientation.y, z = pose_msg.orientation.z)
+    se3 = pin.SE3(quat, position)
+    return se3
+
 class Manipulator:
     HOME_POSITION = [p * math.pi / 180.0 for p in [0, -45, 0, -45, 0, 90, 45]]
     START_POSITION = [p * math.pi / 180.0 for p in [0, -45, 0, -135, 0, 90, 45]]
@@ -72,6 +92,7 @@ class Manipulator:
         self.arm_name = arm_name
         self.tf_listener = tf.TransformListener()
         self.joint_states_pub = rospy.Publisher('/{}/move_group/fake_controller_joint_states'.format(arm_name), JointState, queue_size=10)
+        self.pin_kin = PinKinematics()
 
     def tune_target_pose(self, target_pose, extend=True):
         current_pos = target_pose.position
@@ -434,6 +455,19 @@ class Manipulator:
                 self.joint_states_pub.publish(joint_state)
             else:
                 rospy.loginfo("%s | 轨迹计算失败" % self.arm_name)
+    
+    def follow_by_pinocchio(self, target_pose: Pose):
+        rospy.loginfo("%s | follow_by_pinocchio！" % self.arm_name)
+        target_se3 = pose_msg_to_se3(target_pose)
+        q = self.pin_kin.compute_ik(target_se3, self.current_joints)
+        joint_state = JointState()
+        joint_state.header.stamp = rospy.Time.now()
+        joint_state.name = self.JOINTS_NAME
+        joint_state.position = q[:7]
+        joint_state.velocity = []
+        joint_state.effort = []
+        self.joint_states_pub.publish(joint_state)
+        return
     
     def ik(self, target_pose: Pose, attempts=10):
         self.arm_group.set_pose_target(target_pose)
