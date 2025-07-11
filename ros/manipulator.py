@@ -11,9 +11,10 @@ import threading
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from sensor_msgs.msg import JointState
 from moveit_msgs.msg import RobotTrajectory
-from ik_pinocchio import PinKinematics
-import pinocchio as pin
-import numpy as np
+try:
+    from ik_pinocchio import PinKinematics, pose_msg_to_se3
+except:
+    print("pinocchio可能没有安装")
 
 # 创建屏障，设置需要等待的线程数（这里是2）
 barrier = threading.Barrier(2)
@@ -52,22 +53,6 @@ def position_euler_to_pose(x,y,z,roll, pitch, yaw):
     pose.orientation.w = target_quat[3]
     return pose
 
-def pose_msg_to_se3(pose_msg):
-    """
-    将 geometry_msgs.msg.Pose 转换为 pinocchio.SE3
-    
-    参数:
-        pose_msg (geometry_msgs.msg.Pose): ROS Pose 消息
-        
-    返回:
-        pinocchio.SE3: 对应的 SE3 变换
-    """
-    position = np.array([pose_msg.position.x, 
-                         pose_msg.position.y, 
-                         pose_msg.position.z])
-    quat = pin.Quaternion(w = pose_msg.orientation.w, x = pose_msg.orientation.x, y = pose_msg.orientation.y, z = pose_msg.orientation.z)
-    se3 = pin.SE3(quat, position)
-    return se3
 
 class Manipulator:
     HOME_POSITION = [p * math.pi / 180.0 for p in [0, -45, 0, -45, 0, 90, 45]]
@@ -75,7 +60,7 @@ class Manipulator:
     VR_POSITION = [p * math.pi / 180.0 for p in [0, -45, 0, -135, 0, 180, 45]]
     JOINTS_NAME = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"]
 
-    def __init__(self, arm_name):
+    def __init__(self, arm_name, use_pinocchio=False):
         self.arm_group = MoveGroupCommander(name="panda_manipulator"
                                             , robot_description="/{}/robot_description".format(arm_name)
                                             , ns=arm_name)
@@ -92,7 +77,9 @@ class Manipulator:
         self.arm_name = arm_name
         self.tf_listener = tf.TransformListener()
         self.joint_states_pub = rospy.Publisher('/{}/move_group/fake_controller_joint_states'.format(arm_name), JointState, queue_size=10)
-        self.pin_kin = PinKinematics()
+        self.use_pinocchio = use_pinocchio
+        if self.use_pinocchio:
+            self.pin_kin = PinKinematics()
 
     def tune_target_pose(self, target_pose, extend=True):
         current_pos = target_pose.position

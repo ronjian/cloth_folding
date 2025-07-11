@@ -2,6 +2,24 @@ import numpy as np
 import pinocchio as pin
 from typing import Dict, List
 import os
+from geometry_msgs.msg import Pose
+
+def pose_msg_to_se3(pose_msg: Pose):
+    """
+    将 geometry_msgs.msg.Pose 转换为 pinocchio.SE3
+    
+    参数:
+        pose_msg (geometry_msgs.msg.Pose): ROS Pose 消息
+        
+    返回:
+        pinocchio.SE3: 对应的 SE3 变换
+    """
+    position = np.array([pose_msg.position.x, 
+                         pose_msg.position.y, 
+                         pose_msg.position.z])
+    quat = pin.Quaternion(w = pose_msg.orientation.w, x = pose_msg.orientation.x, y = pose_msg.orientation.y, z = pose_msg.orientation.z)
+    se3 = pin.SE3(quat, position)
+    return se3
 
 class PinKinematics:
     def __init__(self):

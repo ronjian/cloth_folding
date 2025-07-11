@@ -6,6 +6,7 @@ from geometry_msgs.msg import Pose
 import tf.transformations as tf
 import time
 import math
+import argparse
 
 
 class DeltaData:
@@ -97,8 +98,8 @@ def unity_to_ros_position(unity_pos):
     ros_z = unity_pos[1]  # Unity Y -> ROS Z
     return (ros_x, ros_y, ros_z)
 
-class ROSSubscriber:
-    def __init__(self):
+class VrController:
+    def __init__(self, use_pinocchio=False):
         self.vr_data = XROriginData()
         self.vr_subscriber = rospy.Subscriber('/xr_origin', XrOrigin, self.vr_callback)
 
@@ -113,8 +114,8 @@ class ROSSubscriber:
 
         Thread(target=self.follow_vr_gripper, daemon=True).start()
 
-        Thread(target=self.follow_left, args=(False, ), daemon=True).start()
-        Thread(target=self.follow_right, args=(False, ), daemon=True).start()
+        Thread(target=self.follow_left, args=(use_pinocchio, ), daemon=True).start()
+        Thread(target=self.follow_right, args=(use_pinocchio, ), daemon=True).start()
 
         while not rospy.is_shutdown():
             time.sleep(0.1)
@@ -250,5 +251,10 @@ class ROSSubscriber:
                 right_close = False
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="VR遥操作")
+    parser.add_argument('--use-pinocchio', 
+                        action='store_true',
+                        help='启用Pinocchio库功能')
+    args = parser.parse_args()
     rospy.init_node('vr', anonymous=True)
-    ros_subscriber = ROSSubscriber()
+    _ = VrController()
