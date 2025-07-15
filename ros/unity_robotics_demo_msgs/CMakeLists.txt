@@ -12,6 +12,8 @@ add_message_files(FILES
     PosRot.msg
     Keys.msg
     XrOrigin.msg
+    Jpg.msg
+    UnityColor.msg
 )
 
 generate_messages(

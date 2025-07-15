@@ -59,7 +59,7 @@ VR控制机械臂运动的示例, 需要启动mobile_aloha仿真程序
 cd isaacsim
 ./python.sh cloth_folding/isaac_sim/franka_cloth_folding.py --mode=mobile_aloha
 # 将msg拷贝到catkin workspace中
-# 参考： https://github.com/Unity-Technologies/Unity-Robotics-Hub/blob/main/tutorials/ros_unity_integration/publisher.md
+# unity与ROS通信，参考： https://github.com/Unity-Technologies/Unity-Robotics-Hub/blob/main/tutorials/ros_unity_integration/publisher.md
 cp -r cloth_folding/ros/unity_robotics_demo_msgs ~/ws_moveit/src/
 cd ~/ws_moveit
 catkin build
@@ -67,6 +67,10 @@ source ~/ws_moveit/devel/setup.bash
 roslaunch ros_tcp_endpoint endpoint.launch
 # 启动VR控制程序
 python ros/vr.py
+# 需要启动一下节点来推送图片数据到VR中
+python ros/transfer_image.py
+# Unity端接收数据的功能目前只在PC Unity中工作正常， 在Quest3中不工作， ROS-TCP-Endpoint端会提示：
+[WARN] [1752574223.250440]: Inbound TCP/IP connection failed: connection from sender terminated before handshake header received. 0 bytes were received. Please check sender for additional details.ROS-TCP-Endpoint
 ```
 VR设备端的代码在： https://github.com/ronjian/cloth_folding_teleoperation
 
