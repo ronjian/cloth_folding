@@ -15,6 +15,10 @@ try:
     from ik_pinocchio import PinKinematics, pose_msg_to_se3
 except:
     print("pinocchio可能没有安装")
+from ik_rtb import RtbKinematics 
+import numpy as np
+from spatialmath import SE3
+from transforms3d.quaternions import quat2mat
 
 # 创建屏障，设置需要等待的线程数（这里是2）
 barrier = threading.Barrier(2)
@@ -60,7 +64,7 @@ class Manipulator:
     VR_POSITION = [p * math.pi / 180.0 for p in [0, -45, 0, -135, 0, 180, 45]]
     JOINTS_NAME = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"]
 
-    def __init__(self, arm_name, use_pinocchio=False):
+    def __init__(self, arm_name, use_pinocchio=False, use_rtb=False):
         self.arm_group = MoveGroupCommander(name="panda_manipulator"
                                             , robot_description="/{}/robot_description".format(arm_name)
                                             , ns=arm_name)
@@ -80,6 +84,9 @@ class Manipulator:
         self.use_pinocchio = use_pinocchio
         if self.use_pinocchio:
             self.pin_kin = PinKinematics()
+        self.use_rtb = use_rtb
+        if self.use_rtb:
+            self.rtb_kin = RtbKinematics()
 
     def tune_target_pose(self, target_pose, extend=True):
         current_pos = target_pose.position
@@ -447,6 +454,39 @@ class Manipulator:
         rospy.loginfo("%s | follow_by_pinocchio！" % self.arm_name)
         target_se3 = pose_msg_to_se3(target_pose)
         q = self.pin_kin.compute_ik(target_se3, self.current_joints)
+        joint_state = JointState()
+        joint_state.header.stamp = rospy.Time.now()
+        joint_state.name = self.JOINTS_NAME
+        joint_state.position = q[:7]
+        joint_state.velocity = []
+        joint_state.effort = []
+        self.joint_states_pub.publish(joint_state)
+        return
+
+    def follow_by_rtb(self, target_pose: Pose):
+        def pose_to_se3(pose: Pose) -> SE3:
+            # 提取位置
+            position = np.array([pose.position.x, pose.position.y, pose.position.z])
+            
+            # 提取四元数并转换为旋转矩阵
+            quaternion = [
+                pose.orientation.w,
+                pose.orientation.x,
+                pose.orientation.y,
+                pose.orientation.z
+            ]
+            rotation = quat2mat(quaternion)
+            
+            # 构建4x4齐次变换矩阵
+            transform = np.eye(4)
+            transform[:3, :3] = rotation
+            transform[:3, 3] = position
+            se3 = SE3.CopyFrom(transform, True)
+            return se3
+        rospy.loginfo("%s | follow_by_rtb！" % self.arm_name)
+        target_se3 = pose_to_se3(target_pose)
+        # target_se3 = self.rtb_kin.compute_ee_pose(self.current_joints)
+        q = self.rtb_kin.compute_ik(target_se3, self.current_joints)
         joint_state = JointState()
         joint_state.header.stamp = rospy.Time.now()
         joint_state.name = self.JOINTS_NAME

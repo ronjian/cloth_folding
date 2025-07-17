@@ -99,23 +99,23 @@ def unity_to_ros_position(unity_pos):
     return (ros_x, ros_y, ros_z)
 
 class VrController:
-    def __init__(self, use_pinocchio=False):
+    def __init__(self, use_pinocchio=False, use_rtb=False):
         self.vr_data = XROriginData()
         self.vr_subscriber = rospy.Subscriber('/xr_origin', XrOrigin, self.vr_callback)
 
         self.left_delta = DeltaData()
         self.right_delta = DeltaData()
 
-        self.panda_left = Manipulator("panda_left")
-        self.panda_right = Manipulator("panda_right")
+        self.panda_left = Manipulator("panda_left", use_pinocchio=use_pinocchio, use_rtb=use_rtb)
+        self.panda_right = Manipulator("panda_right", use_pinocchio=use_pinocchio, use_rtb=use_rtb)
         self.move_arm_to_vr_position()
 
         Thread(target=self.control, daemon=True).start()
 
         Thread(target=self.follow_vr_gripper, daemon=True).start()
 
-        Thread(target=self.follow_left, args=(use_pinocchio, ), daemon=True).start()
-        Thread(target=self.follow_right, args=(use_pinocchio, ), daemon=True).start()
+        Thread(target=self.follow_left, args=(use_pinocchio, use_rtb), daemon=True).start()
+        Thread(target=self.follow_right, args=(use_pinocchio, use_rtb), daemon=True).start()
 
         while not rospy.is_shutdown():
             time.sleep(0.1)
@@ -215,21 +215,25 @@ class VrController:
         target_pose.orientation.w = quat[3]
         return target_pose
 
-    def follow_left(self, use_pinocchio=False):
+    def follow_left(self, use_pinocchio=False, use_rtb=False):
         while True:
             if self.left_delta.ready:
                 left_target_pose = self.cal_target_pose(self.left_delta, self.vr_data.left_controller)
                 if use_pinocchio:
                     self.panda_left.follow_by_pinocchio(left_target_pose)
+                elif use_rtb:
+                    self.panda_left.follow_by_rtb(left_target_pose)
                 else:
                     self.panda_left.follow(left_target_pose, False)
     
-    def follow_right(self, use_pinocchio=False):
+    def follow_right(self, use_pinocchio=False, use_rtb = False):
         while True:
             if self.right_delta.ready:
                 right_target_pose = self.cal_target_pose(self.right_delta, self.vr_data.right_controller)
                 if use_pinocchio:
                     self.panda_right.follow_by_pinocchio(right_target_pose)
+                elif use_rtb:
+                    self.panda_right.follow_by_rtb(right_target_pose)
                 else:
                     self.panda_right.follow(right_target_pose, False)
     

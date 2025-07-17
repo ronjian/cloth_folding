@@ -86,5 +86,10 @@ if __name__ == "__main__":
     ee_pose = kin.compute_ee_pose(init_q)
     print(ee_pose)
     init_q[0] = -1
-    solved_q = kin.compute_ik(ee_pose, init_q)
+    test_cnt = 100
+    import time
+    tic = time.time()
+    for _ in range(test_cnt):
+        solved_q = kin.compute_ik(ee_pose, init_q)
+    print("Each ik costs: ", (time.time() - tic) / test_cnt, " seconds")
     print(solved_q)
