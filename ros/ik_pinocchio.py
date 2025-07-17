@@ -1,5 +1,13 @@
 import numpy as np
-import pinocchio as pin
+try:
+    import pinocchio as pin
+except ImportError:
+    print("pinocchio安装问题，可能需要设置环境变量：")
+    print("export PATH=/opt/openrobots/bin:$PATH")
+    print("export PKG_CONFIG_PATH=/opt/openrobots/lib/pkgconfig:$PKG_CONFIG_PATH")
+    print("export LD_LIBRARY_PATH=/opt/openrobots/lib:$LD_LIBRARY_PATH")
+    print("export PYTHONPATH=/opt/openrobots/lib/python3.8/site-packages:$PYTHONPATH")
+    print("export CMAKE_PREFIX_PATH=/opt/openrobots:$CMAKE_PREFIX_PATH")
 from typing import Dict, List
 import os
 from geometry_msgs.msg import Pose
