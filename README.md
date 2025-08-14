@@ -25,8 +25,8 @@ ROS_NAMESPACE=panda_right roslaunch panda_moveit_config demo.launch rviz_tutoria
 
 启动isaac sim仿真程序
 ```shell
-cd isaacsim
-./python.sh cloth_folding/isaac_sim/franka_cloth_folding.py --mode=aloha
+conda activate isaac
+python isaac_sim/franka_cloth_folding.py --mode=aloha
 ```
 或者在vscode中debug启动代码，前提是用的是isaacsim自带的python程序
 (```isaacsim/kit/python/bin/python3```)和 ```PYTHONPATH```等环境变量配置正确
@@ -56,8 +56,8 @@ python ros/mouse.py
 VR控制机械臂运动的示例, 需要启动mobile_aloha仿真程序
 ```shell
 # 启动isaac sim仿真程序
-cd isaacsim
-./python.sh cloth_folding/isaac_sim/franka_cloth_folding.py --mode=mobile_aloha
+conda activate isaac
+python isaac_sim/franka_cloth_folding.py --mode=mobile_aloha
 # 将msg拷贝到catkin workspace中
 # unity与ROS通信，参考： https://github.com/Unity-Technologies/Unity-Robotics-Hub/blob/main/tutorials/ros_unity_integration/publisher.md
 cp -r cloth_folding/ros/unity_robotics_demo_msgs ~/ws_moveit/src/
