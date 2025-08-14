@@ -1,0 +1,11 @@
+{
+    "version": "1.0",
+    "file_records": [
+        {
+            "source_url": "/home/shubao/OM/Mesh/clothing/2/FBX/3def9a6d3fde.jpg",
+            "source_hash": "a4500b35bf99538bd552fb3b35c20cb3bc7db82b",
+            "target_url": "./SubUSDs/textures/3def9a6d3fde.jpg",
+            "target_hash": "3667ce043af16333260bc80b420797e6fcf996e6"
+        }
+    ]
+}
